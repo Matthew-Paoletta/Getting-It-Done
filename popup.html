@@ -3,27 +3,44 @@
 <head>
   <title>Getting It Done</title>
   <link rel="stylesheet" href="styles/popup.css">
-  <script src="lib/tesseract.min.js"></script>
-  <script src="scripts/popup.js" type="module"></script>
 </head>
 <body>
   <div class="container">
-    <h1>📅 Getting It Done</h1>
+    <h1>Getting It Done</h1>
     
-    <!-- Tab 1: Upload Schedule -->
-    <div class="tab active" id="upload-tab">
-      <h3>Upload Your UCSD Schedule</h3>
-      <input type="file" id="schedule-upload" accept="image/*">
-      <button id="process-btn">Process Schedule</button>
-      <div id="preview-area"></div>
+    <!-- Upload Button -->
+    <div class="input-section">
+      <input type="file" id="schedule-upload" accept="image/*" style="display:none;">
+      <button id="upload-btn" type="button">Upload Schedule Image</button>
     </div>
-
-    <!-- Tab 2: Calendar Export -->
-    <div class="tab" id="calendar-tab">
-      <h3>Export to Google Calendar</h3>
-      <button id="export-btn">Add to Calendar</button>
-      <div id="calendar-status"></div>
+    
+    <!-- Dropdowns -->
+    <div class="form-group">
+      <label for="quarter">Quarter:</label>
+      <select id="quarter">
+        <option value="Fall">Fall</option>
+        <option value="Winter">Winter</option>
+        <option value="Spring">Spring</option>
+        <option value="Summer 1">Summer Session 1</option>
+        <option value="Summer 2">Summer Session 2</option>
+      </select>
+      
+      <label for="year">Year:</label>
+      <select id="year">
+        <option value="2024">2024</option>
+        <option value="2025">2025</option>
+        <option value="2026">2026</option>
+        <option value="2027">2027</option>
+        <option value="2028">2028</option>
+      </select>
     </div>
+    
+    <!-- Preview Button -->
+    <button id="preview-btn">Preview Schedule</button>
+    
+    <!-- Preview Area -->
+    <div id="preview-area"></div>
   </div>
+  <script src="popup.js"></script>
 </body>
 </html>

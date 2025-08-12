@@ -1,0 +1,72 @@
+.container {
+  width: 240px;
+  padding: 12px;
+  font-family: Arial, sans-serif;
+}
+
+.input-section {
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.tab-buttons, .paste-area, .tab-content { display: none !important; }
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: bold;
+}
+
+select {
+  width: 100%;
+  padding: 6px;
+  margin-bottom: 8px;
+  font-size: 1em;
+}
+
+button {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 10px;
+  background: #4285f4;
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-size: 1em;
+  border-radius: 4px;
+}
+
+button:hover {
+  background: #3367d6;
+}
+
+#preview-area {
+  margin-top: 10px;
+  text-align: center;
+}
+
+#status-message {
+  margin-top: 8px;
+  padding: 6px;
+  border-radius: 4px;
+  font-size: 0.95em;
+}
+
+#status-message.success {
+  background: #e6f4ea;
+  color: #137333;
+}
+
+#status-message.error {
+  background: #fce8e6;
+  color: #d93025;
+}
+
+#status-message.loading {
+  background: #e8f0fe;
+  color: #1a73e8;
+}
