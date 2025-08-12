@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Getting It Done",
+  "version": "1.0",
+  "description": "Convert UCSD schedule screenshots to Google Calendar events",
+  "permissions": [
+    "identity",         // For Google OAuth
+    "storage",          // Save user preferences
+    "alarms",           // For reminders
+    "notifications"     // Notify user
+  ],
+  "host_permissions": [
+    "https://*.google.com/*",  // Google Tasks & Calendar API
+    "https://canvas.ucsd.edu/*" // (Optional) Canvas integration
+  ],
+  "oauth2": {
+    "client_id": "YOUR_CLIENT_ID.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/calendar",
+      "https://www.googleapis.com/auth/tasks"
+    ]
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "images/icon16.png",
+      "32": "images/icon32.png",
+      "48": "images/icon48.png",
+      "128": "images/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "scripts/background.js"
+  }
+}

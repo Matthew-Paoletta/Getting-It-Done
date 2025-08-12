@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Getting It Done</title>
+  <link rel="stylesheet" href="styles/popup.css">
+  <script src="lib/tesseract.min.js"></script>
+  <script src="scripts/popup.js" type="module"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>📅 Getting It Done</h1>
+    
+    <!-- Tab 1: Upload Schedule -->
+    <div class="tab active" id="upload-tab">
+      <h3>Upload Your UCSD Schedule</h3>
+      <input type="file" id="schedule-upload" accept="image/*">
+      <button id="process-btn">Process Schedule</button>
+      <div id="preview-area"></div>
+    </div>
+
+    <!-- Tab 2: Calendar Export -->
+    <div class="tab" id="calendar-tab">
+      <h3>Export to Google Calendar</h3>
+      <button id="export-btn">Add to Calendar</button>
+      <div id="calendar-status"></div>
+    </div>
+  </div>
+</body>
+</html>
