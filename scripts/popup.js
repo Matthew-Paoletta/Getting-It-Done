@@ -1,8 +1,11 @@
+import { setupUpload } from './upload.js';
+
 document.addEventListener('DOMContentLoaded', () => {
+  setupUpload();
   const uploadBtn = document.getElementById('upload-btn');
   const fileInput = document.getElementById('schedule-upload');
   const status = document.getElementById('status-message');
-  const preview = document.getElementById('preview-area');
+  const previewArea = document.getElementById('preview-area');
   const previewBtn = document.getElementById('preview-btn');
   const exportBtn = document.getElementById('export-btn');
   const quarterInput = document.getElementById('quarter');
@@ -37,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Analyze Button
   document.getElementById('analyze-btn').addEventListener('click', async () => {
     status.textContent = '';
-    preview.textContent = '';
+    previewArea.textContent = '';
 
     if (!fileInput.files.length) {
       status.textContent = 'Please select an image file.';
@@ -54,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       const result = await response.json();
       if (response.ok) {
-        preview.textContent = JSON.stringify(result, null, 2);
+        previewArea.textContent = JSON.stringify(result, null, 2);
         // Save events to chrome.storage.local for preview/export
         if (result && result.events) {
           chrome.storage.local.set({ events: result.events }, () => {
@@ -78,8 +81,8 @@ document.addEventListener('DOMContentLoaded', () => {
         showStatus('No schedule to preview. Process an image first.', 'error');
         return;
       }
-      preview.innerHTML = generateSchedulePreview(events);
-      preview.style.display = 'block';
+      previewArea.innerHTML = generateSchedulePreview(events);
+      previewArea.style.display = 'block';
       showStatus('Schedule preview generated', 'success');
     });
   });
@@ -123,18 +126,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Show the image when preview is clicked
+  // Optional: Show image preview when "Preview Schedule" is clicked
   previewBtn.addEventListener('click', () => {
-    preview.innerHTML = '';
+    previewArea.innerHTML = '';
     if (uploadedImageUrl) {
       const img = document.createElement('img');
       img.src = uploadedImageUrl;
       img.alt = 'Schedule Preview';
       img.style.maxWidth = '100%';
       img.style.margin = '10px 0';
-      preview.appendChild(img);
+      previewArea.appendChild(img);
     } else {
-      preview.textContent = 'No image uploaded.';
+      previewArea.textContent = 'No image uploaded.';
     }
   });
 

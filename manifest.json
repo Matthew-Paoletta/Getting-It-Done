@@ -14,7 +14,7 @@
     "https://canvas.ucsd.edu/*"
   ],
   "oauth2": {
-    "client_id": "119520037531-e0128tr5cfr23krf6gn12rl7knf4l6mh.apps.googleusercontent.com",
+    "client_id": "119520037531-s3f2krp7pn2esuucqr05fd9dr3bv4ud4.apps.googleusercontent.com",
     "scopes": [
       "https://www.googleapis.com/auth/calendar",
       "https://www.googleapis.com/auth/tasks"

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>etting It Done</title>
+  <title>Popup</title>
   <link rel="stylesheet" href="styles/popup.css">
   <link href="https://fonts.googleapis.com/css?family=Pacifico&display=swap" rel="stylesheet">
 </head>
@@ -9,10 +9,13 @@
   <div class="container">
     <h1>Getting It Done</h1>
     
-    <!-- Upload Button -->
     <div class="input-section">
+      <div id="paste-area" contenteditable="true" style="border:1px dashed #aaa; min-height:40px; margin-top:8px; text-align:center;">
+        Paste image here (Ctrl+V)
+      </div>
       <input type="file" id="schedule-upload" accept="image/*" style="display:none;">
-      <button id="upload-btn" type="button">Upload Schedule Image</button>
+      <button id="upload-btn" type="button" class="plain-upload-btn">Upload Image</button>
+      <div id="upload-status" style="font-size:0.95em; color:#555; margin-top:4px;"></div>
     </div>
     
     <!-- Dropdowns -->
@@ -42,6 +45,6 @@
     <!-- Preview Area -->
     <div id="preview-area"></div>
   </div>
-  <script src="popup.js"></script>
+  <script src="scripts/main.js"></script>
 </body>
 </html>
