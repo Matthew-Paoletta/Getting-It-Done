@@ -4,20 +4,17 @@
   "version": "1.0",
   "description": "Convert UCSD schedule screenshots to Google Calendar events",
   "permissions": [
-    "storage",
-    "notifications"
+    "storage"
   ],
-  "host_permissions": [
-    "https://*.google.com/*",
-    "https://canvas.ucsd.edu/*"
-  ],
-  "oauth2": {
-    "client_id": "119520037531-s3f2krp7pn2esuucqr05fd9dr3bv4ud4.apps.googleusercontent.com",
-    "scopes": [
-      "https://www.googleapis.com/auth/calendar",
-      "https://www.googleapis.com/auth/tasks"
-    ]
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
   },
+  "web_accessible_resources": [{
+    "resources": [
+      "lib/*"
+    ],
+    "matches": ["<all_urls>"]
+  }],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -36,8 +33,5 @@
   "background": {
     "service_worker": "scripts/background.js",
     "type": "module" 
-  },
-  "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'"
   }
 }

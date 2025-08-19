@@ -1,0 +1,26 @@
+{
+  "name": "getting-it-done",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Matthew-Paoletta/Getting-It-Done.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Matthew-Paoletta/Getting-It-Done/issues"
+  },
+  "homepage": "https://github.com/Matthew-Paoletta/Getting-It-Done#readme",
+  "dependencies": {
+    "tesseract.js": "^6.0.1"
+  }
+}

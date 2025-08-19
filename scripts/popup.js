@@ -3,8 +3,24 @@ import { setupImageProcess } from './imageProcess.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   setupUpload();
-  setupImageProcess();
   
+  console.log('DOM fully loaded');
+
+  // Get elements
+  const processBtn = document.getElementById('process-btn');
+  const resultArea = document.getElementById('result-area');
+
+  // Debug log to check if elements are found
+  console.log('Process button:', processBtn);
+  console.log('Result area:', resultArea);
+
+  if (processBtn && resultArea) {
+    setupImageProcess();
+  } else {
+    console.error('Required elements not found in DOM');
+    console.log('Available elements:', document.body.innerHTML);
+  }
+
   // Keep quarter dates and other functionality
   const quarterInput = document.getElementById('quarter');
   const yearInput = document.getElementById('year');
