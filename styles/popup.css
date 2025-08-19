@@ -1,7 +1,31 @@
+body {
+  margin: 0;
+  padding: 10px;
+  background-color: #FFC107; /* Darker yellow/gold color */
+}
+
 .container {
-  width: 240px;
-  padding: 12px;
+  width: 300px;
+  padding: 8px 12px;  /* Reduced top padding from 12px to 8px */
   font-family: Arial, sans-serif;
+  background-color: #FFEB3B; /* Light yellow background */
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Optional: adds subtle shadow */
+}
+
+.dropdown-container {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.dropdown-item {
+  flex: 1;
+}
+
+.dropdown-item select {
+  width: 100%;
+  padding: 6px;
+  margin-bottom: 4px;  /* Reduced from 8px */
 }
 
 .input-section {
@@ -19,6 +43,7 @@
   display: block;
   margin-bottom: 4px;
   font-weight: bold;
+  color: #1565C0; /* Same dark blue as h1 */
 }
 
 select {
@@ -45,7 +70,7 @@ button:hover {
 }
 
 #preview-area {
-  margin-top: 10px;
+  margin-top: 6px;  /* Reduced from 10px */
   text-align: center;
 }
 
@@ -73,22 +98,102 @@ button:hover {
 
 h1 {
   text-align: center;
-  font-family: 'Helvetica', cursive;
-  font-size: 2.5em;
+  font-family: 'Pacifico', cursive;
+  font-size: 3em;
+  color: #1565C0;
+  margin: 8px 0 18px 0;  /* Reduced top margin from default to 8px */
+  white-space: nowrap;
+}
+
+.button-container {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 10px 0;
 }
 
 .plain-upload-btn {
-  width: auto;
-  padding: 4px 12px;
-  margin: 8px auto 0 auto;
-  background: #f5f5f5;
-  color: #333;
-  border: 1px solid #ccc;
-  border-radius: 3px;
-  font-size: 0.95em;
+  background: #64B5F6;
+  color: white;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
   cursor: pointer;
-  display: block;
+  font-size: 0.9em;
+  width: auto;
 }
-.plain-upload-btn:hover {
-  background: #e0e0e0;
+
+#view-image-btn {
+  background: #64B5F6;
+  color: white;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9em;
+  display: none;
+  width: auto;
+}
+
+.plain-upload-btn:hover,
+#view-image-btn:hover {
+  background: #42A5F5;
+}
+
+.process-btn {
+  background: #64B5F6;
+  color: white;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9em;
+  margin-top: 10px;
+}
+
+#result-area {
+  margin-top: 10px;
+  padding: 8px;
+  font-size: 0.9em;
+}
+
+.schedule-result {
+  text-align: left;
+  margin-top: 8px;
+}
+
+.schedule-item {
+  margin-bottom: 8px;
+  padding: 4px;
+  border-bottom: 1px solid #ddd;
+}
+
+.schedule-item span {
+  display: block;
+  margin: 2px 0;
+}
+
+.error-message {
+  color: #d32f2f;
+  background-color: #ffebee;
+  padding: 10px;
+  border-radius: 4px;
+  margin-top: 10px;
+}
+
+.extracted-text {
+  margin-top: 10px;
+  padding: 8px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.extracted-text pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  margin: 0;
+  font-family: monospace;
+  font-size: 0.9em;
 }

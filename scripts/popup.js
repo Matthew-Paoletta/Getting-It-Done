@@ -1,17 +1,13 @@
 import { setupUpload } from './upload.js';
+import { setupImageProcess } from './imageProcess.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   setupUpload();
-  const uploadBtn = document.getElementById('upload-btn');
-  const fileInput = document.getElementById('schedule-upload');
-  const status = document.getElementById('status-message');
-  const previewArea = document.getElementById('preview-area');
-  const previewBtn = document.getElementById('preview-btn');
-  const exportBtn = document.getElementById('export-btn');
+  setupImageProcess();
+  
+  // Keep quarter dates and other functionality
   const quarterInput = document.getElementById('quarter');
   const yearInput = document.getElementById('year');
-
-  let uploadedImageUrl = null;
 
   const ucsdQuarterDates = {
     'Fall 2025': { start: '09/25/2025', end: '12/05/2025' },

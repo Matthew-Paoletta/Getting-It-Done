@@ -1,50 +1,60 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Popup</title>
-  <link rel="stylesheet" href="styles/popup.css">
-  <link href="https://fonts.googleapis.com/css?family=Pacifico&display=swap" rel="stylesheet">
+    <title>Getting It Done</title>
+    <link rel="stylesheet" href="styles/popup.css">
+    <link href="https://fonts.googleapis.com/css?family=Pacifico&display=swap" rel="stylesheet">
+    <script src="node_modules/tesseract.js/dist/tesseract.min.js"></script>
 </head>
 <body>
   <div class="container">
     <h1>Getting It Done</h1>
     
     <div class="input-section">
-      <div id="paste-area" contenteditable="true" style="border:1px dashed #aaa; min-height:40px; margin-top:8px; text-align:center;">
-        Paste image here (Ctrl+V)
-      </div>
       <input type="file" id="schedule-upload" accept="image/*" style="display:none;">
-      <button id="upload-btn" type="button" class="plain-upload-btn">Upload Image</button>
+      <div class="button-container">
+        <button id="upload-btn" type="button" class="plain-upload-btn">Upload Image</button>
+        <button id="view-image-btn" style="display:none;">View Image</button>
+      </div>
       <div id="upload-status" style="font-size:0.95em; color:#555; margin-top:4px;"></div>
     </div>
     
     <!-- Dropdowns -->
     <div class="form-group">
-      <label for="quarter">Quarter:</label>
-      <select id="quarter">
-        <option value="Fall">Fall</option>
-        <option value="Winter">Winter</option>
-        <option value="Spring">Spring</option>
-        <option value="Summer 1">Summer Session 1</option>
-        <option value="Summer 2">Summer Session 2</option>
-      </select>
-      
-      <label for="year">Year:</label>
-      <select id="year">
-        <option value="2024">2024</option>
-        <option value="2025">2025</option>
-        <option value="2026">2026</option>
-        <option value="2027">2027</option>
-        <option value="2028">2028</option>
-      </select>
+      <div class="dropdown-container">
+        <div class="dropdown-item">
+          <label for="quarter">Quarter:</label>
+          <select id="quarter">
+            <option value="Fall">Fall</option>
+            <option value="Winter">Winter</option>
+            <option value="Spring">Spring</option>
+            <option value="Summer 1">Summer Session 1</option>
+            <option value="Summer 2">Summer Session 2</option>
+          </select>
+        </div>
+        
+        <div class="dropdown-item">
+          <label for="year">Year:</label>
+          <select id="year">
+            <option value="2024">2024</option>
+            <option value="2025">2025</option>
+            <option value="2026">2026</option>
+            <option value="2027">2027</option>
+            <option value="2028">2028</option>
+          </select>
+        </div>
+      </div>
     </div>
-    
-    <!-- Preview Button -->
-    <button id="preview-btn">Preview Schedule</button>
     
     <!-- Preview Area -->
     <div id="preview-area"></div>
+    
+    <!-- Result Area -->
+    <div class="button-container">
+      <button id="process-btn" class="process-btn" style="display:none;">Create Calendar Link</button>
+    </div>
+    <div id="result-area"></div>
   </div>
-  <script src="scripts/main.js"></script>
+  <script type="module" src="scripts/popup.js"></script>
 </body>
 </html>
