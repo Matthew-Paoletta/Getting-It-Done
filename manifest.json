@@ -2,36 +2,13 @@
   "manifest_version": 3,
   "name": "Getting It Done",
   "version": "1.0",
-  "description": "Convert UCSD schedule screenshots to Google Calendar events",
+  "description": "A productivity extension",
   "permissions": [
+    "activeTab",
     "storage"
   ],
-  "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
-  },
-  "web_accessible_resources": [{
-    "resources": [
-      "lib/*"
-    ],
-    "matches": ["<all_urls>"]
-  }],
   "action": {
     "default_popup": "popup.html",
-    "default_icon": {
-      "16": "images/icon16.png",
-      "32": "images/icon32.png",
-      "48": "images/icon48.png",
-      "128": "images/icon128.png"
-    }
-  },
-  "icons": {
-  "16": "images/icon16.png",
-  "32": "images/icon32.png",
-  "48": "images/icon48.png",
-  "128": "images/icon128.png"
-  },
-  "background": {
-    "service_worker": "scripts/background.js",
-    "type": "module" 
+    "default_title": "Getting It Done"
   }
 }

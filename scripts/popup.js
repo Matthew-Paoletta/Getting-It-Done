@@ -2,10 +2,12 @@ import { setupUpload } from './upload.js';
 import { setupImageProcess } from './imageProcess.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-  setupUpload();
-  
   console.log('DOM fully loaded');
+  setupImageProcess();
+  setupQuarterYear();
+});
 
+function setupQuarterYear() {
   // Get elements
   const processBtn = document.getElementById('process-btn');
   const resultArea = document.getElementById('result-area');
@@ -244,4 +246,4 @@ document.addEventListener('DOMContentLoaded', () => {
     status.className = type;
     setTimeout(() => status.textContent = '', 5000);
   }
-});
+};
