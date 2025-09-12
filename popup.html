@@ -4,11 +4,16 @@
     <title>Getting It Done</title>
     <link rel="stylesheet" href="styles/popup.css">
     <link href="https://fonts.googleapis.com/css?family=Pacifico&display=swap" rel="stylesheet">
-    <script src="node_modules/tesseract.js/dist/tesseract.min.js"></script>
+    <!-- No external libraries needed -->
 </head>
 <body>
   <div class="container">
-    <h1>Getting It Done</h1>
+    <!-- Header section with logo and title -->
+    <div class="header-section">
+      <img src="images/icon128.png" alt="Getting It Done Logo" class="logo">
+      <h1 class="app-title">Getting It Done</h1>
+      <p class="app-subtitle">Transform your schedule into actionable calendar events</p>
+    </div>
     
     <div class="input-section">
       <input type="file" id="schedule-upload" accept="image/*" style="display:none;">
@@ -28,8 +33,8 @@
             <option value="Fall">Fall</option>
             <option value="Winter">Winter</option>
             <option value="Spring">Spring</option>
-            <option value="Summer 1">Summer Session 1</option>
-            <option value="Summer 2">Summer Session 2</option>
+            <option value="Summer Session 1">Summer Session 1</option>
+            <option value="Summer Session 2">Summer Session 2</option>
           </select>
         </div>
         
@@ -51,9 +56,10 @@
     
     <!-- Result Area -->
     <div class="button-container">
-      <button id="process-btn" class="process-btn" style="display:none;">Create Calendar Link</button>
+      <button id="process-btn" class="process-btn" style="display:none;">Analyze Image</button>
     </div>
     <div id="result-area"></div>
+    <div id="status"></div>
   </div>
   <script type="module" src="scripts/popup.js"></script>
 </body>

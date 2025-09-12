@@ -1,8 +1,7 @@
-import { setupUpload } from './upload.js';
 import { setupImageProcess } from './imageProcess.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-  setupUpload();
+  // Only call setupImageProcess - it handles all the upload/view functionality
   setupImageProcess();
   
   // Keep quarter dates and other functionality
@@ -33,178 +32,76 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add more years/quarters as needed
   };
 
-  // Analyze Button
-  document.getElementById('analyze-btn').addEventListener('click', async () => {
-    status.textContent = '';
-    previewArea.textContent = '';
+  // Remove all the duplicate event listeners for upload and file input
+  // setupImageProcess() handles these now
 
-    if (!fileInput.files.length) {
-      status.textContent = 'Please select an image file.';
-      return;
-    }
+  // Keep only the export and calendar functionality
+  const exportBtn = document.getElementById('export-btn');
+  const previewBtn = document.getElementById('preview-btn');
+  const previewArea = document.getElementById('preview-area');
+  const status = document.getElementById('status');
 
-    const formData = new FormData();
-    formData.append('file', fileInput.files[0]);
-
-    try {
-      const response = await fetch('http://localhost:5000/upload', {
-        method: 'POST',
-        body: formData
-      });
-      const result = await response.json();
-      if (response.ok) {
-        previewArea.textContent = JSON.stringify(result, null, 2);
-        // Save events to chrome.storage.local for preview/export
-        if (result && result.events) {
-          chrome.storage.local.set({ events: result.events }, () => {
-            status.textContent = 'Schedule analyzed and saved!';
-          });
-        } else {
-          status.textContent = 'No events found in image.';
+  if (exportBtn) {
+    exportBtn.addEventListener('click', async () => {
+      const quarter = quarterInput.value;
+      const year = yearInput.value;
+      chrome.storage.local.get('events', ({ events }) => {
+        if (!events || events.length === 0) {
+          showStatus('No events to export. Process an image first.', 'error');
+          return;
         }
-      } else {
-        status.textContent = result.error || 'Error analyzing image.';
-      }
-    } catch (err) {
-      status.textContent = 'Failed to connect to backend.';
-    }
-  });
-
-  // Preview Button Functionality
-  previewBtn.addEventListener('click', async () => {
-    chrome.storage.local.get('events', ({ events }) => {
-      if (!events || events.length === 0) {
-        showStatus('No schedule to preview. Process an image first.', 'error');
-        return;
-      }
-      previewArea.innerHTML = generateSchedulePreview(events);
-      previewArea.style.display = 'block';
-      showStatus('Schedule preview generated', 'success');
+        try {
+          showStatus('Creating calendar...', 'loading');
+          const calendarEvents = events.map(event => ({
+            ...event,
+            start: calculateDate(event.day, event.time, quarter, year),
+            end: calculateDate(event.day, event.time, quarter, year, event.duration)
+          }));
+          const calendarLink = generateCalendarLink(calendarEvents);
+          window.open(calendarLink, '_blank');
+          showStatus('Calendar opened in new tab!', 'success');
+        } catch (error) {
+          console.error('Export failed:', error);
+          showStatus('Failed to create calendar', 'error');
+        }
+      });
     });
-  });
-
-  // Export to Google Calendar Button
-  exportBtn.addEventListener('click', async () => {
-    const quarter = quarterInput.value;
-    const year = yearInput.value;
-    chrome.storage.local.get('events', ({ events }) => {
-      if (!events || events.length === 0) {
-        showStatus('No events to export. Process an image first.', 'error');
-        return;
-      }
-      try {
-        showStatus('Creating calendar...', 'loading');
-        const calendarEvents = events.map(event => ({
-          ...event,
-          start: calculateDate(event.day, event.time, quarter, year),
-          end: calculateDate(event.day, event.time, quarter, year, event.duration)
-        }));
-        const calendarLink = generateCalendarLink(calendarEvents);
-        window.open(calendarLink, '_blank');
-        showStatus('Calendar opened in new tab!', 'success');
-      } catch (error) {
-        console.error('Export failed:', error);
-        showStatus('Failed to create calendar', 'error');
-      }
-    });
-  });
-
-  // When the button is clicked, trigger the file input
-  uploadBtn.addEventListener('click', () => {
-    fileInput.click();
-  });
-
-  // When a file is selected, store its URL
-  fileInput.addEventListener('change', () => {
-    if (fileInput.files && fileInput.files[0]) {
-      uploadedImageUrl = URL.createObjectURL(fileInput.files[0]);
-      uploadBtn.textContent = "Image Selected";
-    }
-  });
-
-  // Optional: Show image preview when "Preview Schedule" is clicked
-  previewBtn.addEventListener('click', () => {
-    previewArea.innerHTML = '';
-    if (uploadedImageUrl) {
-      const img = document.createElement('img');
-      img.src = uploadedImageUrl;
-      img.alt = 'Schedule Preview';
-      img.style.maxWidth = '100%';
-      img.style.margin = '10px 0';
-      previewArea.appendChild(img);
-    } else {
-      previewArea.textContent = 'No image uploaded.';
-    }
-  });
-
-  // Show image preview when a file is selected
-  fileInput.addEventListener('change', () => {
-    const preview = document.getElementById('preview-area');
-    preview.innerHTML = ''; // Clear previous preview
-    if (fileInput.files && fileInput.files[0]) {
-      const img = document.createElement('img');
-      img.src = URL.createObjectURL(fileInput.files[0]);
-      img.alt = 'Schedule Image Preview';
-      img.style.maxWidth = '100%';
-      img.style.marginBottom = '10px';
-      preview.appendChild(img);
-    }
-  });
-
-  // Helper Functions
-  function generateSchedulePreview(events) {
-    return `
-      <h3>Your Schedule Preview</h3>
-      <table class="schedule-table">
-        <tr>
-          <th>Course</th>
-          <th>Day</th>
-          <th>Time</th>
-        </tr>
-        ${events.map(event => `
-          <tr>
-            <td>${event.course}</td>
-            <td>${event.day}</td>
-            <td>${event.time}</td>
-          </tr>
-        `).join('')}
-      </table>
-    `;
   }
 
+  // Helper Functions (keep these)
   function calculateDate(dayOfWeek, time, quarter, year, durationHours = 1) {
-  // Compose key for lookup
-  let key = quarter;
-  if (!quarter.toLowerCase().includes('summer')) {
-    key += ` ${year}`;
-  } else {
-    // For summer, dropdown value is "Summer Session 1" or "Summer Session 2"
-    key = `${quarter} ${year}`;
-  }
-  const dates = ucsdQuarterDates[key];
-  if (!dates) return '';
+    // Compose key for lookup
+    let key = quarter;
+    if (!quarter.toLowerCase().includes('summer')) {
+      key += ` ${year}`;
+    } else {
+      // For summer, dropdown value is "Summer Session 1" or "Summer Session 2"
+      key = `${quarter} ${year}`;
+    }
+    const dates = ucsdQuarterDates[key];
+    if (!dates) return '';
 
-  const startDate = new Date(dates.start);
-  const days = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-  const targetDay = days.indexOf(dayOfWeek.toLowerCase().substr(0, 3));
-  while (startDate.getDay() !== targetDay) {
-    startDate.setDate(startDate.getDate() + 1);
-  }
-  const [timePart, period] = time.split(' ');
-  let [hours, minutes] = timePart.split(':').map(Number);
-  if (period === 'PM' && hours < 12) hours += 12;
-  if (period === 'AM' && hours === 12) hours = 0;
-  startDate.setHours(hours, minutes);
-  // Optionally, add duration for end time
-  if (durationHours) {
-    const endDate = new Date(startDate);
-    endDate.setHours(endDate.getHours() + durationHours);
-    return {
-      start: startDate.toISOString().replace(/\.\d{3}Z$/, ''),
-      end: endDate.toISOString().replace(/\.\d{3}Z$/, '')
-    };
-  }
-  return startDate.toISOString().replace(/\.\d{3}Z$/, '');
+    const startDate = new Date(dates.start);
+    const days = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+    const targetDay = days.indexOf(dayOfWeek.toLowerCase().substr(0, 3));
+    while (startDate.getDay() !== targetDay) {
+      startDate.setDate(startDate.getDate() + 1);
+    }
+    const [timePart, period] = time.split(' ');
+    let [hours, minutes] = timePart.split(':').map(Number);
+    if (period === 'PM' && hours < 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+    startDate.setHours(hours, minutes);
+    // Optionally, add duration for end time
+    if (durationHours) {
+      const endDate = new Date(startDate);
+      endDate.setHours(endDate.getHours() + durationHours);
+      return {
+        start: startDate.toISOString().replace(/\.\d{3}Z$/, ''),
+        end: endDate.toISOString().replace(/\.\d{3}Z$/, '')
+      };
+    }
+    return startDate.toISOString().replace(/\.\d{3}Z$/, '');
   }
 
   function generateCalendarLink(events) {
@@ -224,8 +121,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function showStatus(message, type) {
-    status.textContent = message;
-    status.className = type;
-    setTimeout(() => status.textContent = '', 5000);
+    if (status) {
+      status.textContent = message;
+      status.className = type;
+      setTimeout(() => status.textContent = '', 5000);
+    }
   }
 });

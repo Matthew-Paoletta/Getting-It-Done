@@ -2,24 +2,26 @@
   "manifest_version": 3,
   "name": "Getting It Done",
   "version": "1.0",
-  "description": "Convert UCSD schedule screenshots to Google Calendar events",
+  "description": "A productivity extension",
   "permissions": [
+    "activeTab",
     "storage",
-    "notifications"
+    "identity"
   ],
   "host_permissions": [
-    "https://*.google.com/*",
-    "https://canvas.ucsd.edu/*"
+    "https://api.ocr.space/*",
+    "https://www.googleapis.com/*",
+    "https://accounts.google.com/*"
   ],
   "oauth2": {
-    "client_id": "119520037531-s3f2krp7pn2esuucqr05fd9dr3bv4ud4.apps.googleusercontent.com",
+    "client_id": "getting-it-done-468723.apps.googleusercontent.com",
     "scopes": [
-      "https://www.googleapis.com/auth/calendar",
-      "https://www.googleapis.com/auth/tasks"
+      "https://www.googleapis.com/auth/calendar.events"
     ]
   },
   "action": {
     "default_popup": "popup.html",
+    "default_title": "Getting It Done",
     "default_icon": {
       "16": "images/icon16.png",
       "32": "images/icon32.png",
@@ -28,16 +30,17 @@
     }
   },
   "icons": {
-  "16": "images/icon16.png",
-  "32": "images/icon32.png",
-  "48": "images/icon48.png",
-  "128": "images/icon128.png"
+    "16": "images/icon16.png",
+    "32": "images/icon32.png",
+    "48": "images/icon48.png",
+    "128": "images/icon128.png"
   },
-  "background": {
-    "service_worker": "scripts/background.js",
-    "type": "module" 
-  },
-  "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'"
-  }
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "images/*"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }
