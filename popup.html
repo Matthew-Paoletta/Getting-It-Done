@@ -1,66 +1,102 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Getting It Done</title>
-    <link rel="stylesheet" href="styles/popup.css">
-    <link href="https://fonts.googleapis.com/css?family=Pacifico&display=swap" rel="stylesheet">
-    <!-- No external libraries needed -->
+  <meta charset="utf-8">
+  <title>Getting It Done</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles/popup.css">
 </head>
 <body>
   <div class="container">
-    <!-- Header section with logo and title -->
-    <div class="header-section">
-      <img src="images/icon128.png" alt="Getting It Done Logo" class="logo">
-      <h1 class="app-title">Getting It Done</h1>
-      <p class="app-subtitle">Transform your schedule into actionable calendar events</p>
-    </div>
-    
-    <div class="input-section">
-      <input type="file" id="schedule-upload" accept="image/*" style="display:none;">
-      <div class="button-container">
-        <button id="upload-btn" type="button" class="plain-upload-btn">Upload Image</button>
-        <button id="view-image-btn" style="display:none;">View Image</button>
+    <!-- Header -->
+    <header>
+      <div class="logo">
+        <div class="logo-placeholder">📚</div>
+        <h1>Getting It Done</h1>
       </div>
-      <div id="upload-status" style="font-size:0.95em; color:#555; margin-top:4px;"></div>
-    </div>
-    
-    <!-- Dropdowns -->
-    <div class="form-group">
-      <div class="dropdown-container">
-        <div class="dropdown-item">
-          <label for="quarter">Quarter:</label>
-          <select id="quarter">
-            <option value="Fall">Fall</option>
+      <p class="tagline">Transform your WebReg schedule into calendar events</p>
+    </header>
+
+    <!-- Quarter Selection -->
+    <div class="step-card">
+      <div class="step-number">0</div>
+      <div class="step-content">
+        <h2>Select Quarter</h2>
+        <div class="quarter-controls">
+          <select id="quarter" class="quarter-select">
+            <option value="Fall" selected>Fall</option>
             <option value="Winter">Winter</option>
             <option value="Spring">Spring</option>
             <option value="Summer Session 1">Summer Session 1</option>
             <option value="Summer Session 2">Summer Session 2</option>
           </select>
-        </div>
-        
-        <div class="dropdown-item">
-          <label for="year">Year:</label>
-          <select id="year">
-            <option value="2024">2024</option>
-            <option value="2025">2025</option>
+          <select id="year" class="year-select">
+            <option value="2025" selected>2025</option>
             <option value="2026">2026</option>
             <option value="2027">2027</option>
-            <option value="2028">2028</option>
           </select>
         </div>
       </div>
     </div>
-    
-    <!-- Preview Area -->
-    <div id="preview-area"></div>
-    
-    <!-- Result Area -->
-    <div class="button-container">
-      <button id="process-btn" class="process-btn" style="display:none;">Analyze Image</button>
+
+    <!-- Step 1: Upload WebReg Screenshot -->
+    <div class="step-card">
+      <div class="step-number">1</div>
+      <div class="step-content">
+        <h2>Upload WebReg Screenshot</h2>
+        <p>Take a screenshot of your class schedule from WebReg</p>
+        <div class="instructions-box">
+          <h3>📸 How to take the screenshot:</h3>
+          <ol>
+            <li>Go to <a href="https://act.ucsd.edu/webreg2" target="_blank">WebReg</a></li>
+            <li>Select the correct quarter and click "Go" to load your schedule</li>
+            <li>Click the "List" tab to view your schedule as a table</li>
+            <li>Scroll to see your full list of classes (including all sections)</li>
+            <li>Take a screenshot (Win+Shift+S or Cmd+Shift+4)</li>
+            <li>Make sure all classes, sections, times and locations are visible</li>
+          </ol>
+        </div>
+        
+        <div class="upload-area" id="upload-area">
+          <input type="file" id="schedule-upload" accept="image/*" hidden>
+          <button id="upload-btn" class="btn primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            Upload Schedule Screenshot
+          </button>
+          <div id="file-info" style="display: none;">
+            <span id="upload-status"></span>
+          </div>
+        </div>
+      </div>
     </div>
+    
+    <!-- Step 2: Process Image -->
+    <div class="step-card">
+      <div class="step-number">2</div>
+      <div class="step-content">
+        <h2>Process Schedule</h2>
+        <p>Extract class information from your screenshot</p>
+        <div id="preview-area"></div>
+        <div id="ocr-progress"></div>
+        <button id="process-btn" class="btn primary" style="display: none;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="16 12 12 8 8 12"></polyline><line x1="12" y1="16" x2="12" y2="8"></line></svg>
+          Analyze Schedule
+        </button>
+      </div>
+    </div>
+    
+    <!-- Step 3: Results -->
     <div id="result-area"></div>
-    <div id="status"></div>
+
+    <!-- Footer -->
+    <footer>
+      <p>Made with ❤️ at UCSD</p>
+      <p class="version">Version 1.2</p>
+    </footer>
   </div>
+
   <script type="module" src="scripts/popup.js"></script>
 </body>
 </html>

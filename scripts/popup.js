@@ -1,130 +1,466 @@
+/**
+ * Popup initialization and ALL UI display logic centralized here
+ */
 import { setupImageProcess } from './imageProcess.js';
+import { scheduleParser } from './scheduleParser.js';
+import { googleCalendarAPI } from './googleCalendar.js';
 
-document.addEventListener('DOMContentLoaded', () => {
-  // Only call setupImageProcess - it handles all the upload/view functionality
-  setupImageProcess();
-  
-  // Keep quarter dates and other functionality
-  const quarterInput = document.getElementById('quarter');
-  const yearInput = document.getElementById('year');
+console.log('🚀 Popup.js loaded');
 
-  const ucsdQuarterDates = {
-    'Fall 2025': { start: '09/25/2025', end: '12/05/2025' },
-    'Winter 2025': { start: '01/06/2025', end: '03/14/2025' },
-    'Spring 2025': { start: '03/31/2025', end: '06/06/2025' },
-    'Summer Session 1 2025': { start: '06/30/2025', end: '08/01/2025' },
-    'Summer Session 2 2025': { start: '08/04/2025', end: '09/05/2025' },
-    'Fall 2026': { start: '09/24/2026', end: '12/04/2026' },
-    'Winter 2026': { start: '01/05/2026', end: '03/13/2026' },
-    'Spring 2026': { start: '03/30/2026', end: '06/05/2026' },
-    'Summer Session 1 2026': { start: '06/29/2026', end: '07/31/2026' },
-    'Summer Session 2 2026': { start: '08/03/2026', end: '09/04/2026' },
-    'Fall 2027': { start: '09/23/2027', end: '12/03/2027' },
-    'Winter 2027': { start: '01/04/2027', end: '03/12/2027' },
-    'Spring 2027': { start: '03/29/2027', end: '06/04/2027' },
-    'Summer Session 1 2027': { start: '06/28/2027', end: '07/30/2027' },
-    'Summer Session 2 2027': { start: '08/02/2027', end: '09/03/2027' },
-    'Fall 2028': { start: '09/28/2028', end: '12/08/2028' },
-    'Winter 2028': { start: '01/10/2028', end: '03/17/2028' },
-    'Spring 2028': { start: '04/03/2028', end: '06/09/2028' },
-    'Summer Session 1 2028': { start: '07/03/2028', end: '08/04/2028' },
-    'Summer Session 2 2028': { start: '08/07/2028', end: '09/08/2028' }
-    // Add more years/quarters as needed
+// ===== UI HELPER FUNCTIONS =====
+function getSessionColor(type) {
+  const map = { 
+    Lecture: '#3366ff', 
+    Discussion: '#22aa88', 
+    Lab: '#cc6600', 
+    'Final Exam': '#8a5cf0' 
   };
+  return map[type] || '#667eea';
+}
 
-  // Remove all the duplicate event listeners for upload and file input
-  // setupImageProcess() handles these now
+function getICSEventColor(eventType) {
+  const colors = {
+    'Lecture': '#3366ff',
+    'Discussion': '#22aa88', 
+    'Lab': '#cc6600',
+    'Final Exam': '#8a5cf0'
+  };
+  return colors[eventType] || '#667eea';
+}
 
-  // Keep only the export and calendar functionality
-  const exportBtn = document.getElementById('export-btn');
-  const previewBtn = document.getElementById('preview-btn');
-  const previewArea = document.getElementById('preview-area');
-  const status = document.getElementById('status');
-
-  if (exportBtn) {
-    exportBtn.addEventListener('click', async () => {
-      const quarter = quarterInput.value;
-      const year = yearInput.value;
-      chrome.storage.local.get('events', ({ events }) => {
-        if (!events || events.length === 0) {
-          showStatus('No events to export. Process an image first.', 'error');
-          return;
-        }
-        try {
-          showStatus('Creating calendar...', 'loading');
-          const calendarEvents = events.map(event => ({
-            ...event,
-            start: calculateDate(event.day, event.time, quarter, year),
-            end: calculateDate(event.day, event.time, quarter, year, event.duration)
-          }));
-          const calendarLink = generateCalendarLink(calendarEvents);
-          window.open(calendarLink, '_blank');
-          showStatus('Calendar opened in new tab!', 'success');
-        } catch (error) {
-          console.error('Export failed:', error);
-          showStatus('Failed to create calendar', 'error');
-        }
-      });
-    });
+// ===== MAIN DISPLAY FUNCTIONS =====
+export function displayScheduleResults(events, quarter, year) {
+  console.log('📊 Displaying results for', events.length, 'events');
+  
+  const resultArea = document.getElementById('result-area');
+  if (!resultArea) {
+    console.error('❌ Result area not found');
+    return;
   }
-
-  // Helper Functions (keep these)
-  function calculateDate(dayOfWeek, time, quarter, year, durationHours = 1) {
-    // Compose key for lookup
-    let key = quarter;
-    if (!quarter.toLowerCase().includes('summer')) {
-      key += ` ${year}`;
-    } else {
-      // For summer, dropdown value is "Summer Session 1" or "Summer Session 2"
-      key = `${quarter} ${year}`;
-    }
-    const dates = ucsdQuarterDates[key];
-    if (!dates) return '';
-
-    const startDate = new Date(dates.start);
-    const days = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-    const targetDay = days.indexOf(dayOfWeek.toLowerCase().substr(0, 3));
-    while (startDate.getDay() !== targetDay) {
-      startDate.setDate(startDate.getDate() + 1);
-    }
-    const [timePart, period] = time.split(' ');
-    let [hours, minutes] = timePart.split(':').map(Number);
-    if (period === 'PM' && hours < 12) hours += 12;
-    if (period === 'AM' && hours === 12) hours = 0;
-    startDate.setHours(hours, minutes);
-    // Optionally, add duration for end time
-    if (durationHours) {
-      const endDate = new Date(startDate);
-      endDate.setHours(endDate.getHours() + durationHours);
-      return {
-        start: startDate.toISOString().replace(/\.\d{3}Z$/, ''),
-        end: endDate.toISOString().replace(/\.\d{3}Z$/, '')
+  
+  // Group events by course
+  const grouped = events.reduce((acc, event) => {
+    const key = event.courseCode || 'Unknown Course';
+    if (!acc[key]) {
+      acc[key] = {
+        title: event.courseTitle || '',
+        items: []
       };
     }
-    return startDate.toISOString().replace(/\.\d{3}Z$/, '');
-  }
+    acc[key].items.push(event);
+    return acc;
+  }, {});
 
-  function generateCalendarLink(events) {
-    const baseUrl = 'https://calendar.google.com/calendar/u/0/r/eventedit';
-    if (events.length > 0) {
-      const firstEvent = events[0];
-      return `${baseUrl}?text=${encodeURIComponent(firstEvent.course)}` +
-             `&dates=${formatCalendarTime(firstEvent.start)}` +
-             `/${formatCalendarTime(firstEvent.end)}` +
-             `&details=${encodeURIComponent('Imported from Getting It Done')}`;
+  // Get event statistics
+  const stats = scheduleParser.getEventStatistics(events);
+
+  // Create type chips
+  const chips = Object.entries(stats.sessionTypes)
+    .map(([type, count]) => `<span class="chip">${type}: ${count}</span>`)
+    .join('');
+
+  // Create course cards
+  const courseCards = Object.entries(grouped).map(([courseCode, group]) => {
+    const sessions = group.items.map(event => {
+      const sessionType = event.getNormalizedSessionType();
+      const color = getSessionColor(sessionType);
+      return `
+        <div class="session-row">
+          <span class="type-pill" style="background:${color}22;color:${color};border:1px solid ${color}44;">
+            ${sessionType}
+          </span>
+          <div class="session-info">
+            <div class="line-1">
+              <span class="days">${event.days || event.finalDay || ''}</span>
+              <span class="time">${event.startTime || ''}–${event.endTime || ''}</span>
+            </div>
+            <div class="line-2">
+              ${event.location ? `<span class="loc">📍 ${event.location}</span>` : ''}
+              ${event.sectionCode ? `<span class="sec">Section ${event.sectionCode}</span>` : ''}
+              ${event.instructor ? `<span class="inst">👨‍🏫 ${event.instructor}</span>` : ''}
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+
+    return `
+      <div class="course-card">
+        <div class="course-header">
+          <div class="course-code">${courseCode}</div>
+          ${group.title ? `<div class="course-title">${group.title}</div>` : ''}
+        </div>
+        <div class="course-body">${sessions}</div>
+      </div>`;
+  }).join('');
+
+  // Render results
+  resultArea.innerHTML = `
+    <section class="results-wrap">
+      <h2 class="results-title">📅 Schedule Parsed Successfully</h2>
+      <div class="results-subtitle">${stats.totalEvents} event(s) found • ${stats.courseCount} course(s) • ${quarter} ${year}</div>
+      <div class="results-chips">${chips}</div>
+      <div class="events-grid">
+        ${courseCards || '<div class="empty">No sessions detected in the image.</div>'}
+      </div>
+      <div class="export-card">
+        <h3>🎯 Export Your Schedule</h3>
+        <p>Download your complete class schedule as a .ics calendar file that you can import into Google Calendar, Outlook, or any calendar app.</p>
+        <div class="export-buttons">
+          <button id="download-ics-btn" class="download-btn">
+            📥 Download .ics File
+          </button>
+          <button id="google-calendar-btn" class="download-btn secondary">
+            📅 Add to Google Calendar
+          </button>
+        </div>
+      </div>
+    </section>
+  `;
+
+  console.log('✅ Results displayed, setting up export buttons...');
+  setupExportButtons(events, quarter, year);
+}
+
+export function displayICSEventsPreview(icsEvents, filename) {
+  console.log('📋 Displaying ICS events preview for', icsEvents.length, 'events');
+  
+  const resultArea = document.getElementById('result-area');
+  if (!resultArea) return;
+  
+  // Create ICS preview section
+  const icsPreviewHtml = `
+    <div class="ics-preview-card" style="margin-top: 20px; background: #e8f5e9; border: 2px solid #4CAF50; border-radius: 8px; padding: 16px;">
+      <h3 style="color: #2E7D32; margin: 0 0 12px 0; font-size: 16px;">
+        📄 ICS File Contents Preview
+      </h3>
+      <div style="background: white; border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+        <div style="font-weight: 600; color: #1976D2; margin-bottom: 8px;">
+          📁 File: ${filename}
+        </div>
+        <div style="font-size: 12px; color: #666; margin-bottom: 12px;">
+          ${icsEvents.length} calendar events will be added to your calendar
+        </div>
+        
+        <div class="ics-events-list" style="max-height: 300px; overflow-y: auto;">
+          ${icsEvents.map(event => `
+            <div class="ics-event-item" style="border-left: 4px solid ${getICSEventColor(event.type)}; padding: 8px 12px; margin: 6px 0; background: #fafafa; border-radius: 0 4px 4px 0;">
+              <div style="font-weight: 600; color: #333; margin-bottom: 2px;">
+                ${event.title}
+              </div>
+              <div style="font-size: 11px; color: #666; line-height: 1.4;">
+                <span style="margin-right: 12px;">📅 ${event.days}</span>
+                <span style="margin-right: 12px;">⏰ ${event.startTime} - ${event.endTime}</span>
+                ${event.location !== 'TBA' ? `<span style="margin-right: 12px;">📍 ${event.location}</span>` : ''}
+              </div>
+              ${event.instructor ? `<div style="font-size: 11px; color: #666; margin-top: 2px;">👨‍🏫 ${event.instructor}</div>` : ''}
+              <div style="font-size: 10px; color: #888; margin-top: 4px; font-style: italic;">
+                ${event.recurrence}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      
+      <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 8px; font-size: 11px; color: #856404;">
+        <strong>✨ Import Instructions:</strong> After downloading, open your calendar app (Google Calendar, Outlook, Apple Calendar) and import this .ics file to add all these events automatically.
+      </div>
+    </div>
+  `;
+  
+  // Insert the preview after the existing export card
+  const exportCard = resultArea.querySelector('.export-card');
+  if (exportCard) {
+    exportCard.insertAdjacentHTML('afterend', icsPreviewHtml);
+    
+    // Scroll to the preview
+    const previewCard = resultArea.querySelector('.ics-preview-card');
+    if (previewCard) {
+      previewCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
-    return baseUrl;
   }
+}
 
-  function formatCalendarTime(isoString) {
-    return isoString.replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+export function displayError(error) {
+  console.error('❌ Processing failed:', error);
+  
+  // Show error in result area
+  const resultArea = document.getElementById('result-area');
+  if (resultArea) {
+    resultArea.innerHTML = `
+      <div class="results-wrap">
+        <h2 style="color: var(--error);">❌ Processing Failed</h2>
+        <p><strong>Error:</strong> ${error.message}</p>
+        <div class="instructions-box" style="background: #ffebee; border: 1px solid #ffcdd2;">
+          <h3>💡 Troubleshooting Tips:</h3>
+          <ul style="padding-left: 20px; margin: 8px 0;">
+            <li>Make sure you uploaded a screenshot of your WebReg schedule (List view)</li>
+            <li>Ensure the image is clear and all text is readable</li>
+            <li>Try taking a new screenshot with better lighting/contrast</li>
+            <li>Make sure all courses and their details are visible in the screenshot</li>
+            <li>Check that the image shows the complete table with headers</li>
+          </ul>
+        </div>
+        <button onclick="location.reload()" class="btn primary" style="margin-top: 16px;">
+          🔄 Try Again
+        </button>
+      </div>
+    `;
   }
+}
 
-  function showStatus(message, type) {
-    if (status) {
-      status.textContent = message;
-      status.className = type;
-      setTimeout(() => status.textContent = '', 5000);
+// ===== BUTTON SETUP FUNCTIONS =====
+export function setupExportButtons(events, quarter, year) {
+  console.log('🔧 Setting up export buttons for', events.length, 'events');
+  
+  setTimeout(() => {
+    console.log('🔍 Setting up download button...');
+    
+    const downloadBtn = document.getElementById('download-ics-btn');
+    if (downloadBtn) {
+      console.log('✅ Download button found');
+      
+      downloadBtn.onclick = null;
+      
+      downloadBtn.onclick = function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('🔘 DOWNLOAD BUTTON CLICKED!');
+        
+        try {
+          this.disabled = true;
+          this.textContent = '⏳ Generating...';
+          
+          console.log('📄 Generating ICS file...');
+          console.log('Events:', events.length, 'Quarter:', quarter, 'Year:', year);
+          
+          const icsData = googleCalendarAPI.generateICSFile(events, quarter, year);
+          console.log('✅ ICS generated:', icsData.filename);
+          
+          // ← MOVED TO POPUP.JS: Display ICS events in popup BEFORE download
+          displayICSEventsPreview(icsData.icsEvents, icsData.filename);
+          
+          console.log('📥 Starting download...');
+          
+          const blob = new Blob([icsData.content], { 
+            type: 'text/calendar;charset=utf-8' 
+          });
+          
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = icsData.filename;
+          
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          URL.revokeObjectURL(url);
+          
+          console.log('✅ Download completed');
+          
+          this.textContent = '✅ Downloaded!';
+          this.style.background = '#4CAF50';
+          
+          setTimeout(() => {
+            this.disabled = false;
+            this.textContent = '📥 Download .ics File';
+            this.style.background = '';
+          }, 2000);
+          
+        } catch (error) {
+          console.error('❌ Download failed:', error);
+          
+          this.disabled = false;
+          this.textContent = '❌ Failed';
+          this.style.background = '#f44336';
+          
+          setTimeout(() => {
+            this.textContent = '📥 Download .ics File';
+            this.style.background = '';
+          }, 3000);
+        }
+      };
+      
+      console.log('✅ Download button handler attached');
+    } else {
+      console.error('❌ Download button not found');
     }
+
+    // Google Calendar Button setup
+    const googleBtn = document.getElementById('google-calendar-btn');
+    if (googleBtn) {
+      console.log('✅ Google Calendar button found');
+      
+      googleBtn.onclick = null;
+      
+      googleBtn.onclick = async function(e) {
+        e.preventDefault();
+        console.log('🔘 Google Calendar button clicked');
+        
+        try {
+          this.disabled = true;
+          this.textContent = '🔐 Authenticating...';
+          
+          await googleCalendarAPI.authenticate();
+          this.textContent = '📅 Creating Events...';
+          
+          const googleEvents = events.map(event => ({
+            courseCode: event.courseCode,
+            courseTitle: event.courseTitle,
+            sessionType: event.getNormalizedSessionType(),
+            instructor: event.instructor,
+            days: event.days,
+            startTime: event.startTime,
+            endTime: event.endTime,
+            location: event.location,
+            quarter: quarter,
+            year: year
+          }));
+
+          const results = await googleCalendarAPI.createMultipleEvents(
+            googleEvents,
+            'primary',
+            (progress) => {
+              this.textContent = `📅 Creating... ${progress.current}/${progress.total}`;
+            }
+          );
+          
+          this.textContent = `✅ Added ${results.created.length} Events!`;
+          this.style.background = '#4CAF50';
+          
+          setTimeout(() => {
+            this.disabled = false;
+            this.textContent = '📅 Add to Google Calendar';
+            this.style.background = '';
+          }, 3000);
+          
+        } catch (error) {
+          console.error('❌ Google Calendar sync failed:', error);
+          alert(`Google Calendar sync failed: ${error.message}`);
+          
+          this.disabled = false;
+          this.textContent = '❌ Sync Failed';
+          this.style.background = '#f44336';
+          
+          setTimeout(() => {
+            this.textContent = '📅 Add to Google Calendar';
+            this.style.background = '';
+          }, 3000);
+        }
+      };
+    }
+    
+  }, 100);
+  
+  console.log('🎯 Export buttons setup initiated');
+}
+
+// ===== NEW: Display OCR results for debugging =====
+export function displayOCRText(ocrResult, quarter, year) {
+  console.log('🔍 Displaying OCR text for analysis');
+  
+  const resultArea = document.getElementById('result-area');
+  if (!resultArea) return;
+  
+  // Create OCR text display
+  const ocrDisplayHtml = `
+    <section class="results-wrap">
+      <h2 class="results-title">🔍 OCR Analysis Results</h2>
+      <div class="results-subtitle">Text extracted from your WebReg screenshot • ${quarter} ${year}</div>
+      
+      <div style="margin: 16px 0;">
+        <div style="background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 6px; padding: 12px; margin-bottom: 16px;">
+          <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 14px;">📊 OCR Metadata:</h4>
+          <div style="font-size: 12px; color: #6c757d;">
+            <span style="margin-right: 16px;">📁 File: ${ocrResult.metadata.fileName}</span>
+            <span style="margin-right: 16px;">📏 Size: ${Math.round(ocrResult.metadata.fileSize / 1024)} KB</span>
+            <span style="margin-right: 16px;">⏱️ Processing: ${ocrResult.metadata.processingTime}ms</span>
+            <span>🔧 Engine: ${ocrResult.metadata.ocrEngine}</span>
+          </div>
+        </div>
+
+        <div style="background: #fff; border: 2px solid #007bff; border-radius: 6px; padding: 16px; margin-bottom: 16px;">
+          <h4 style="margin: 0 0 12px 0; color: #007bff; font-size: 14px;">
+            📄 Raw OCR Text (${ocrResult.text.length} characters)
+          </h4>
+          <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: 12px; font-family: 'Courier New', monospace; font-size: 11px; line-height: 1.4; max-height: 400px; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word;">
+${ocrResult.text}
+          </div>
+        </div>
+
+        <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 12px; margin-bottom: 16px;">
+          <h4 style="margin: 0 0 8px 0; color: #856404; font-size: 14px;">🔧 Debug Information:</h4>
+          <div style="font-size: 12px; color: #856404; line-height: 1.5;">
+            <strong>What we're looking for:</strong><br>
+            • Course codes (like "CSE 105", "MATH 18", "BILD 1")<br>
+            • Session types (Lecture, Discussion, Lab, Final Exam)<br>
+            • Days (MW, TuTh, MWF, etc.)<br>
+            • Times (like "2:00pm-3:20pm")<br>
+            • Locations (CENTR 101, WLH 2005, etc.)<br>
+            • Instructors (Last, First format)<br><br>
+            <strong>Parsing will start after you analyze this text...</strong>
+          </div>
+        </div>
+
+        <div class="export-buttons" style="text-align: center;">
+          <button id="continue-parsing-btn" class="btn primary" style="margin-right: 12px;">
+            ✅ Continue with Parsing
+          </button>
+          <button id="retry-ocr-btn" class="btn secondary">
+            🔄 Try Different Image
+          </button>
+        </div>
+      </div>
+    </section>
+  `;
+  
+  resultArea.innerHTML = ocrDisplayHtml;
+  
+  // Set up continue button
+  const continueBtn = document.getElementById('continue-parsing-btn');
+  if (continueBtn) {
+    continueBtn.onclick = () => {
+      console.log('🚀 User approved OCR text, continuing with parsing...');
+      
+      // Now parse the events
+      const events = scheduleParser.parseTextToEvents(ocrResult.text, quarter, year);
+      
+      if (!events || events.length === 0) {
+        displayError(new Error('No class schedule data could be parsed from the OCR text'));
+        return;
+      }
+
+      // Validate events
+      const validEvents = events.filter(event => event.isValid());
+      if (validEvents.length === 0) {
+        displayError(new Error('No valid events could be created from the schedule data'));
+        return;
+      }
+
+      console.log('✅ Schedule parsing completed');
+      console.log(`📊 Created ${validEvents.length} valid events`);
+
+      // Display results
+      displayScheduleResults(validEvents, quarter, year);
+    };
+  }
+  
+  // Set up retry button
+  const retryBtn = document.getElementById('retry-ocr-btn');
+  if (retryBtn) {
+    retryBtn.onclick = () => {
+      location.reload();
+    };
+  }
+}
+
+// ===== INITIALIZE =====
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('🚀 DOM loaded, initializing image processing...');
+  try {
+    setupImageProcess();
+    console.log('✅ Image processing setup completed');
+  } catch (error) {
+    console.error('❌ Failed to setup image processing:', error);
   }
 });

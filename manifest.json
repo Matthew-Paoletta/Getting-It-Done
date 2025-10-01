@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Getting It Done",
-  "version": "1.0",
-  "description": "A productivity extension",
+  "version": "1.2",
+  "description": "Transform your UCSD WebReg schedule into calendar events",
   "permissions": [
     "activeTab",
     "storage",
@@ -24,21 +24,20 @@
     "default_title": "Getting It Done",
     "default_icon": {
       "16": "images/icon16.png",
-      "32": "images/icon32.png",
       "48": "images/icon48.png",
       "128": "images/icon128.png"
     }
   },
   "icons": {
     "16": "images/icon16.png",
-    "32": "images/icon32.png",
     "48": "images/icon48.png",
     "128": "images/icon128.png"
   },
   "web_accessible_resources": [
     {
       "resources": [
-        "images/*"
+        "images/*",
+        "styles/*"
       ],
       "matches": ["<all_urls>"]
     }
