@@ -3,6 +3,7 @@
  */
 import { setupImageProcess } from './imageProcess.js';
 import { scheduleParser } from './scheduleParser.js';
+import { textParser } from './textParser.js';
 import { googleCalendarAPI } from './googleCalendar.js';
 
 console.log('🚀 Popup.js loaded');
@@ -13,7 +14,8 @@ function getSessionColor(type) {
     Lecture: '#3366ff', 
     Discussion: '#22aa88', 
     Lab: '#cc6600', 
-    'Final Exam': '#8a5cf0' 
+    'Final Exam': '#8a5cf0',
+    'Midterm': '#e91e63'  // Pink for midterms
   };
   return map[type] || '#667eea';
 }
@@ -23,7 +25,8 @@ function getICSEventColor(eventType) {
     'Lecture': '#3366ff',
     'Discussion': '#22aa88', 
     'Lab': '#cc6600',
-    'Final Exam': '#8a5cf0'
+    'Final Exam': '#8a5cf0',
+    'Midterm': '#e91e63'
   };
   return colors[eventType] || '#667eea';
 }
@@ -454,13 +457,200 @@ ${ocrResult.text}
   }
 }
 
+// ===== INPUT METHOD TOGGLE =====
+function setupInputMethodToggle() {
+  const imageMethodBtn = document.getElementById('method-image');
+  const textMethodBtn = document.getElementById('method-text');
+  const imageSection = document.getElementById('image-input-section');
+  const textSection = document.getElementById('text-input-section');
+  const processStep = document.getElementById('process-step');
+
+  if (!imageMethodBtn || !textMethodBtn) {
+    console.error('❌ Input method buttons not found');
+    return;
+  }
+
+  console.log('✅ Found toggle buttons, setting up listeners...');
+
+  // Text method is now default - hide process step initially
+  processStep.style.display = 'none';
+
+  imageMethodBtn.addEventListener('click', () => {
+    console.log('📷 Image method clicked');
+    imageMethodBtn.classList.add('active');
+    textMethodBtn.classList.remove('active');
+    imageSection.style.display = 'block';
+    textSection.style.display = 'none';
+    processStep.style.display = 'flex';
+  });
+
+  textMethodBtn.addEventListener('click', () => {
+    console.log('📋 Text method clicked');
+    textMethodBtn.classList.add('active');
+    imageMethodBtn.classList.remove('active');
+    textSection.style.display = 'block';
+    imageSection.style.display = 'none';
+    processStep.style.display = 'none';
+  });
+
+  console.log('✅ Input method toggle setup complete');
+}
+
+// ===== TEXT INPUT HANDLING =====
+function setupTextInput() {
+  const textArea = document.getElementById('schedule-text');
+  const charCount = document.getElementById('text-char-count');
+  const parseBtn = document.getElementById('parse-text-btn');
+
+  if (!textArea || !parseBtn) {
+    console.error('❌ Text input elements not found');
+    return;
+  }
+
+  // Update character count and enable/disable button
+  textArea.addEventListener('input', () => {
+    const length = textArea.value.length;
+    charCount.textContent = `${length} characters`;
+    
+    if (length > 50) {
+      charCount.classList.add('has-content');
+      parseBtn.disabled = false;
+    } else {
+      charCount.classList.remove('has-content');
+      parseBtn.disabled = true;
+    }
+  });
+
+  // Parse button click handler
+  parseBtn.addEventListener('click', () => {
+    console.log('🔄 Parse button clicked');
+    handleTextParsing();
+  });
+
+  console.log('✅ Text input setup complete');
+}
+
+// ===== TEXT PARSING HANDLER =====
+function handleTextParsing() {
+  console.log('🔄 Starting text parsing...');
+  
+  const textArea = document.getElementById('schedule-text');
+  const parseBtn = document.getElementById('parse-text-btn');
+  const quarterSelect = document.getElementById('quarter');
+  const yearSelect = document.getElementById('year');
+
+  if (!textArea || !textArea.value.trim()) {
+    displayError(new Error('Please paste your WebReg schedule text'));
+    return;
+  }
+
+  const rawText = textArea.value;
+  const quarter = quarterSelect?.value || 'Fall';
+  const year = yearSelect?.value || '2025';
+
+  // Disable button and show progress
+  parseBtn.disabled = true;
+  parseBtn.innerHTML = '⏳ Parsing...';
+
+  try {
+    console.log(`📝 Parsing text for ${quarter} ${year}`);
+    console.log(`Text preview: ${rawText.substring(0, 200)}...`);
+
+    // Parse the text using textParser
+    const result = textParser.parseWebRegText(rawText, quarter, year);
+
+    if (result.error && result.events.length === 0) {
+      throw new Error(result.error);
+    }
+
+    console.log(`✅ Parsed ${result.events.length} events`);
+
+    // Display results using existing display function
+    displayScheduleResults(result.events, quarter, year);
+
+    // Show success feedback
+    parseBtn.innerHTML = '✅ Parsed!';
+    parseBtn.style.background = '#4CAF50';
+
+    setTimeout(() => {
+      parseBtn.disabled = false;
+      parseBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        Parse Schedule Text
+      `;
+      parseBtn.style.background = '';
+    }, 2000);
+
+  } catch (error) {
+    console.error('❌ Text parsing failed:', error);
+    displayTextParsingError(error);
+
+    parseBtn.disabled = false;
+    parseBtn.innerHTML = '❌ Failed - Try Again';
+    parseBtn.style.background = '#f44336';
+
+    setTimeout(() => {
+      parseBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        Parse Schedule Text
+      `;
+      parseBtn.style.background = '';
+    }, 3000);
+  }
+}
+
+// ===== TEXT PARSING ERROR DISPLAY =====
+function displayTextParsingError(error) {
+  const resultArea = document.getElementById('result-area');
+  if (!resultArea) return;
+
+  resultArea.innerHTML = `
+    <div class="results-wrap">
+      <h2 style="color: var(--error);">❌ Text Parsing Failed</h2>
+      <p><strong>Error:</strong> ${error.message}</p>
+      
+      <div class="instructions-box" style="background: #ffebee; border: 1px solid #ffcdd2;">
+        <h3>💡 Tips for copying from WebReg:</h3>
+        <ul style="padding-left: 20px; margin: 8px 0;">
+          <li>Make sure you're on the <strong>"List" tab</strong> in WebReg</li>
+          <li>Select the entire schedule table including all rows</li>
+          <li>Copy with Ctrl+C (Windows) or Cmd+C (Mac)</li>
+          <li>Paste directly into the text box</li>
+          <li>Make sure your schedule has at least one enrolled course</li>
+        </ul>
+      </div>
+
+      <div class="instructions-box" style="background: #e3f2fd; border: 1px solid #90caf9; margin-top: 12px;">
+        <h3>📋 Expected format example:</h3>
+        <pre style="font-size: 10px; overflow-x: auto; white-space: pre-wrap; background: #f5f5f5; padding: 8px; border-radius: 4px; margin-top: 8px;">
+CSE 100	Advanced Data Structures	A00	LE	Sahoo, Debashis	L	4.00	MWF	9:00a-9:50a	PETER	108
+    A01	DI	W	8:00p-8:50p	PETER	108
+    Midterm	MI	Sa 02/07/2026	3:00p-4:50p	PETER	108
+    Final Exam	FI	W 03/18/2026	8:00a-10:59a	PETER	108
+        </pre>
+      </div>
+
+      <button onclick="location.reload()" class="btn primary" style="margin-top: 16px;">
+        🔄 Try Again
+      </button>
+    </div>
+  `;
+}
+
 // ===== INITIALIZE =====
 document.addEventListener('DOMContentLoaded', () => {
-  console.log('🚀 DOM loaded, initializing image processing...');
+  console.log('🚀 DOM loaded, initializing...');
+  
   try {
+    // Add these two new setup calls
+    setupInputMethodToggle();
+    setupTextInput();
+    
+    // Setup image processing (existing)
     setupImageProcess();
-    console.log('✅ Image processing setup completed');
+    
+    console.log('✅ All initialization completed');
   } catch (error) {
-    console.error('❌ Failed to setup image processing:', error);
+    console.error('❌ Failed during initialization:', error);
   }
 });

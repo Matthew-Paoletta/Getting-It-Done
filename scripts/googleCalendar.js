@@ -12,7 +12,7 @@ export class GoogleCalendarAPI {
   // ===== ICS FILE GENERATION METHODS =====
 
   /**
-* Generate ICS file content from events
+   * Generate ICS file content from events
    */
   generateICSFile(events, quarter, year) {
     console.log('🔧 generateICSFile called with:', { 
@@ -34,7 +34,7 @@ export class GoogleCalendarAPI {
       ].join('\r\n') + '\r\n';
 
       let eventsCreated = 0;
-      const createdICSEvents = []; // ← NEW: Track created ICS events for display
+      const createdICSEvents = [];
 
       // Add timezone definition
       icsContent += [
@@ -70,21 +70,20 @@ export class GoogleCalendarAPI {
             continue;
           }
 
-          // Handle Final Exams (one-time events)
-          if (sessionType === 'Final Exam') {
-            console.log('🎯 Creating Final Exam event for:', event.courseCode);
-            const finalEvent = this.createFinalExamEvent(event, quarter, year);
-            if (finalEvent) {
-              icsContent += finalEvent + '\r\n';
+          // Handle Final Exams and Midterms (one-time events)
+          if (sessionType === 'Final Exam' || sessionType === 'Midterm') {
+            console.log(`🎯 Creating ${sessionType} event for:`, event.courseCode);
+            const examEvent = this.createExamEvent(event, sessionType, quarter, year);
+            if (examEvent) {
+              icsContent += examEvent + '\r\n';
               eventsCreated++;
               
-              // ← NEW: Track final exam for display
               createdICSEvents.push({
-                type: 'Final Exam',
-                title: `${event.courseCode} Final Exam`,
+                type: sessionType,
+                title: `${event.courseCode} ${sessionType}`,
                 courseCode: event.courseCode,
                 courseTitle: event.courseTitle || '',
-                days: event.finalDay || 'TBA',
+                days: event.finalDay || event.days || 'TBA',
                 date: event.finalDate || 'TBA',
                 startTime: event.startTime,
                 endTime: event.endTime,
@@ -93,7 +92,7 @@ export class GoogleCalendarAPI {
                 recurrence: 'One-time event'
               });
               
-              console.log('✅ Added Final Exam:', event.courseCode);
+              console.log(`✅ Added ${sessionType}:`, event.courseCode);
             }
             continue;
           }
@@ -101,21 +100,21 @@ export class GoogleCalendarAPI {
           // Handle regular weekly events (Lectures, Discussions, Labs)
           if (sessionType === 'Lecture' || sessionType === 'Discussion' || sessionType === 'Lab') {
             console.log('📚 Creating weekly event for:', event.courseCode, sessionType);
-            console.log('Event days:', event.days);
+            console.log('Event days:', event.days, 'Times:', event.startTime, '-', event.endTime);
             
-            const weeklyEvents = this.createWeeklyEvents(event, quarter, year);
-            console.log('Generated weekly events:', weeklyEvents.length);
-            
-            for (const weeklyEvent of weeklyEvents) {
-              icsContent += weeklyEvent + '\r\n';
-              eventsCreated++;
-              console.log('✅ Added weekly event:', event.courseCode, sessionType);
+            // Check if we have days - if not, skip
+            if (!event.days || event.days.trim() === '') {
+              console.log('⚠️ No days specified for weekly event, skipping:', event.courseCode);
+              continue;
             }
             
-            // ← NEW: Track weekly events for display (one entry per course/session)
-            if (weeklyEvents.length > 0) {
-              const { startDate, endDate } = this.getQuarterDates(quarter, year);
-              const totalOccurrences = this.calculateWeeklyOccurrences(event.days, startDate, endDate);
+            const weeklyEventContent = this.createWeeklyEventICS(event, quarter, year);
+            
+            if (weeklyEventContent) {
+              icsContent += weeklyEventContent + '\r\n';
+              eventsCreated++;
+              
+              const { startDate, endDate } = this.getQuarterDatesForICS(quarter, year);
               
               createdICSEvents.push({
                 type: sessionType,
@@ -127,8 +126,10 @@ export class GoogleCalendarAPI {
                 endTime: event.endTime,
                 location: event.location || 'TBA',
                 instructor: event.instructor || '',
-                recurrence: `Weekly • ${totalOccurrences} occurrences • ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`
+                recurrence: `Weekly on ${event.days} • ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`
               });
+              
+              console.log('✅ Added weekly event:', event.courseCode, sessionType);
             }
           }
 
@@ -152,7 +153,7 @@ export class GoogleCalendarAPI {
         content: icsContent,
         filename: filename,
         eventsCreated: eventsCreated,
-        icsEvents: createdICSEvents // ← NEW: Return the tracked events for display
+        icsEvents: createdICSEvents
       };
 
     } catch (error) {
@@ -162,42 +163,47 @@ export class GoogleCalendarAPI {
   }
 
   /**
-   * Create a final exam event
+   * Create exam event (Final or Midterm) - PRESERVED FORMAT
    */
-  createFinalExamEvent(event, quarter, year) {
+  createExamEvent(event, examType, quarter, year) {
     try {
-      // Parse final exam date (format: MM/DD/YYYY or similar)
       const finalDate = event.finalDate;
-      if (!finalDate) return null;
-
-      // Simple date parsing - adjust as needed based on your date format
-      let examDate;
-      if (finalDate.includes('/')) {
-        const [month, day, examYear] = finalDate.split('/');
-        examDate = new Date(parseInt(examYear), parseInt(month) - 1, parseInt(day));
-      } else {
-        // Default to a date in the quarter if parsing fails
-        examDate = new Date(parseInt(year), 11, 15); // December 15th as default
+      if (!finalDate) {
+        console.log(`⚠️ No date for ${examType}:`, event.courseCode);
+        return null;
       }
 
-      // Parse start and end times
+      // Parse date (format: MM/DD/YYYY)
+      let examDate;
+      if (finalDate.includes('/')) {
+        const parts = finalDate.split('/');
+        const month = parseInt(parts[0]) - 1;
+        const day = parseInt(parts[1]);
+        const examYear = parts[2].length === 2 ? 2000 + parseInt(parts[2]) : parseInt(parts[2]);
+        examDate = new Date(examYear, month, day);
+      } else {
+        console.log('⚠️ Could not parse date:', finalDate);
+        return null;
+      }
+
+      // Parse times
       const startDateTime = this.parseTimeToDate(event.startTime, examDate);
       const endDateTime = this.parseTimeToDate(event.endTime, examDate);
 
       if (!startDateTime || !endDateTime) {
-        console.log('⚠️ Could not parse times for final exam:', event.courseCode);
+        console.log(`⚠️ Could not parse times for ${examType}:`, event.courseCode);
         return null;
       }
 
-      const uid = `final-${event.courseCode.replace(/\s+/g, '')}-${quarter}-${year}@ucsd.edu`;
+      const uid = `${examType.toLowerCase().replace(' ', '-')}-${event.courseCode.replace(/\s+/g, '')}-${quarter}-${year}@gettingitdone.ucsd`;
       
       return [
         'BEGIN:VEVENT',
         `UID:${uid}`,
         `DTSTART;TZID=America/Los_Angeles:${this.formatDateTimeForICS(startDateTime)}`,
         `DTEND;TZID=America/Los_Angeles:${this.formatDateTimeForICS(endDateTime)}`,
-        `SUMMARY:${event.courseCode} Final Exam`,
-        `DESCRIPTION:${event.getEventDescription()}`,
+        `SUMMARY:${event.courseCode} ${examType}`,
+        `DESCRIPTION:${this.escapeICSText(event.getEventDescription())}`,
         `LOCATION:${event.location || 'TBA'}`,
         'STATUS:CONFIRMED',
         'TRANSP:OPAQUE',
@@ -205,186 +211,211 @@ export class GoogleCalendarAPI {
       ].join('\r\n');
 
     } catch (error) {
-      console.error('❌ Error creating final exam event:', error);
+      console.error(`❌ Error creating ${examType} event:`, error);
       return null;
     }
   }
 
   /**
-   * Create weekly recurring events
+   * Create a weekly recurring event - FIXED VERSION
    */
-  createWeeklyEvents(event, quarter, year) {
-    const events = [];
-    
+  createWeeklyEventICS(event, quarter, year) {
     try {
-      console.log('🔄 Creating weekly events for:', event.courseCode, event.getNormalizedSessionType());
-      console.log('Event details:', {
-        days: event.days,
-        startTime: event.startTime,
-        endTime: event.endTime,
-        location: event.location
-      });
+      console.log('🔄 Creating weekly ICS event for:', event.courseCode, event.getNormalizedSessionType());
       
-      // Get quarter start and end dates
-      const { startDate, endDate } = this.getQuarterDates(quarter, year);
-      console.log('Quarter dates:', startDate, 'to', endDate);
+      // Get quarter dates
+      const { startDate, endDate } = this.getQuarterDatesForICS(quarter, year);
+      console.log('Quarter dates:', startDate.toDateString(), 'to', endDate.toDateString());
       
-      // FIXED: Handle case where days might be empty - use fallback days based on session type
-      let daysToUse = event.days;
-      if (!daysToUse || daysToUse.length === 0) {
-        // Fallback: assign common days based on session type
-        if (event.getNormalizedSessionType() === 'Lecture') {
-          daysToUse = 'MWF'; // Most lectures are MWF
-        } else if (event.getNormalizedSessionType() === 'Discussion') {
-          daysToUse = 'F'; // Most discussions are Friday
-        } else {
-          daysToUse = 'MW'; // Default fallback
-        }
-        console.log('⚠️ No days specified, using fallback:', daysToUse);
+      // Parse days to ICS format (e.g., "MWF" -> "MO,WE,FR")
+      const icsDays = this.convertDaysToICSFormat(event.days);
+      console.log('ICS days:', icsDays);
+      
+      if (!icsDays) {
+        console.log('⚠️ Could not parse days:', event.days);
+        return null;
       }
       
-      // Parse days (e.g., "MWF" -> ["MO", "WE", "FR"])
-      const icsWeekdays = this.parseWeekdays(daysToUse);
-      console.log('Parsed weekdays:', icsWeekdays);
+      // Find first occurrence of this class
+      const firstDayCode = icsDays.split(',')[0]; // Get first day (e.g., "MO")
+      const firstOccurrence = this.findFirstWeekdayInRange(firstDayCode, startDate, endDate);
       
-      if (icsWeekdays.length === 0) {
-        console.log('⚠️ No valid weekdays found for:', event.courseCode, daysToUse);
-        return events;
+      if (!firstOccurrence) {
+        console.log('⚠️ Could not find first occurrence');
+        return null;
       }
-
-      // Create recurring events for each weekday
-      for (const weekday of icsWeekdays) {
-        console.log('🗓️ Processing weekday:', weekday);
-        
-        const firstOccurrence = this.findFirstWeekdayInRange(weekday, startDate, endDate);
-        if (!firstOccurrence) {
-          console.log('⚠️ Could not find first occurrence for weekday:', weekday);
-          continue;
-        }
-        
-        console.log('📅 First occurrence for', weekday, ':', firstOccurrence.toDateString());
-
-        // Parse times for this day
-        const startDateTime = this.parseTimeToDate(event.startTime, firstOccurrence);
-        const endDateTime = this.parseTimeToDate(event.endTime, firstOccurrence);
-
-        if (!startDateTime || !endDateTime) {
-          console.log('⚠️ Could not parse times for:', event.courseCode, event.startTime, event.endTime);
-          continue;
-        }
-
-        console.log('⏰ Times parsed:', startDateTime.toLocaleString(), 'to', endDateTime.toLocaleString());
-
-        // Create unique UID
-        const uid = `${event.courseCode.replace(/\s+/g, '')}-${event.sessionType}-${weekday}-${quarter}-${year}@ucsd.edu`;
-        
-        // Create the recurring event
-        const recurringEvent = [
-          'BEGIN:VEVENT',
-          `UID:${uid}`,
-          `DTSTART;TZID=America/Los_Angeles:${this.formatDateTimeForICS(startDateTime)}`,
-          `DTEND;TZID=America/Los_Angeles:${this.formatDateTimeForICS(endDateTime)}`,
-          `RRULE:FREQ=WEEKLY;UNTIL=${this.formatDateForICS(endDate)}T235959Z`,
-          `SUMMARY:${event.getEventTitle()}`,
-          `DESCRIPTION:${event.getEventDescription()}`,
-          `LOCATION:${event.location || 'TBA'}`,
-          'STATUS:CONFIRMED',
-          'TRANSP:OPAQUE',
-          'END:VEVENT'
-        ].join('\r\n');
-
-        events.push(recurringEvent);
-        console.log('✅ Created weekly event for:', event.courseCode, event.getNormalizedSessionType(), weekday);
+      
+      console.log('First occurrence:', firstOccurrence.toDateString());
+      
+      // Parse times
+      const startDateTime = this.parseTimeToDate(event.startTime, firstOccurrence);
+      const endDateTime = this.parseTimeToDate(event.endTime, firstOccurrence);
+      
+      if (!startDateTime || !endDateTime) {
+        console.log('⚠️ Could not parse times:', event.startTime, event.endTime);
+        return null;
       }
-
-      console.log(`📊 Created ${events.length} weekly events for ${event.courseCode}`);
-
+      
+      console.log('Start time:', startDateTime.toLocaleString());
+      console.log('End time:', endDateTime.toLocaleString());
+      
+      // Create unique ID
+      const uid = `${event.courseCode.replace(/\s+/g, '')}-${event.sessionType}-${quarter}-${year}@gettingitdone.ucsd`;
+      
+      // Format the UNTIL date (end of quarter at 11:59:59 PM UTC)
+      const untilDate = this.formatUntilDate(endDate);
+      
+      // Build the VEVENT
+      const vevent = [
+        'BEGIN:VEVENT',
+        `UID:${uid}`,
+        `DTSTART;TZID=America/Los_Angeles:${this.formatDateTimeForICS(startDateTime)}`,
+        `DTEND;TZID=America/Los_Angeles:${this.formatDateTimeForICS(endDateTime)}`,
+        `RRULE:FREQ=WEEKLY;BYDAY=${icsDays};UNTIL=${untilDate}`,
+        `SUMMARY:${event.courseCode} - ${event.getNormalizedSessionType()}`,
+        `DESCRIPTION:${this.escapeICSText(event.getEventDescription())}`,
+        `LOCATION:${event.location || 'TBA'}`,
+        'STATUS:CONFIRMED',
+        'TRANSP:OPAQUE',
+        'END:VEVENT'
+      ].join('\r\n');
+      
+      console.log('✅ Created VEVENT for:', event.courseCode);
+      return vevent;
+      
     } catch (error) {
-      console.error('❌ Error creating weekly events:', error);
+      console.error('❌ Error creating weekly event:', error);
+      return null;
     }
-
-    return events;
   }
 
   /**
-   * Helper function to parse weekdays
+   * Convert days string to ICS BYDAY format
+   * "MWF" -> "MO,WE,FR"
+   * "TuTh" -> "TU,TH"
    */
-  parseWeekdays(daysStr) {
+  convertDaysToICSFormat(daysStr) {
+    if (!daysStr) return null;
+    
     const dayMap = {
-      'M': 'MO', 'Tu': 'TU', 'W': 'WE', 'Th': 'TH', 'F': 'FR'
+      'M': 'MO',
+      'Tu': 'TU',
+      'W': 'WE',
+      'Th': 'TH',
+      'F': 'FR',
+      'Sa': 'SA',
+      'Su': 'SU'
     };
     
     const days = [];
-    const dayString = daysStr || '';
+    let i = 0;
+    const str = daysStr.trim();
     
-    // Handle common patterns
-    if (dayString.includes('MWF')) {
-      days.push('MO', 'WE', 'FR');
-    } else if (dayString.includes('TTh') || dayString.includes('TuTh')) {
-      days.push('TU', 'TH');
-    } else if (dayString.includes('MW')) {
-      days.push('MO', 'WE');
-    } else {
-      // Parse individual days
-      Object.entries(dayMap).forEach(([key, value]) => {
-        if (dayString.includes(key)) {
-          days.push(value);
+    while (i < str.length) {
+      // Check for two-character days first (Tu, Th, Sa, Su)
+      if (i + 1 < str.length) {
+        const twoChar = str.substring(i, i + 2);
+        if (dayMap[twoChar]) {
+          days.push(dayMap[twoChar]);
+          i += 2;
+          continue;
         }
-      });
+      }
+      
+      // Check for single character days (M, W, F)
+      const oneChar = str[i];
+      if (dayMap[oneChar]) {
+        days.push(dayMap[oneChar]);
+      }
+      i++;
     }
     
-    return [...new Set(days)]; // Remove duplicates
+    return days.length > 0 ? days.join(',') : null;
   }
 
   /**
-   * Helper function to get quarter dates
+   * Get quarter dates for ICS generation - UPDATED WITH CORRECT DATES
    */
-  getQuarterDates(quarter, year) {
+  getQuarterDatesForICS(quarter, year) {
     const yearInt = parseInt(year);
+    
+    // UCSD Quarter dates
     const quarterDates = {
       'Fall': { 
-        startDate: new Date(yearInt, 8, 25), // September 25
-        endDate: new Date(yearInt, 11, 15)   // December 15
+        startDate: new Date(yearInt, 8, 25),  // September 25 (Week 0)
+        endDate: new Date(yearInt, 11, 6)     // December 6 (last day of classes before finals)
       },
       'Winter': { 
-        startDate: new Date(yearInt, 0, 8),  // January 8
-        endDate: new Date(yearInt, 2, 22)    // March 22
+        startDate: new Date(yearInt, 0, 5),   // January 5 (first day of instruction)
+        endDate: new Date(yearInt, 2, 13)     // March 13 (last day of classes before finals)
       },
       'Spring': { 
-        startDate: new Date(yearInt, 2, 25), // March 25
-        endDate: new Date(yearInt, 5, 15)    // June 15
+        startDate: new Date(yearInt, 2, 30),  // March 30
+        endDate: new Date(yearInt, 5, 6)      // June 6
       },
-      'Summer': { 
-        startDate: new Date(yearInt, 5, 20), // June 20
-        endDate: new Date(yearInt, 7, 30)    // August 30
+      'Summer Session 1': { 
+        startDate: new Date(yearInt, 5, 30),  // June 30
+        endDate: new Date(yearInt, 7, 2)      // August 2
+      },
+      'Summer Session 2': { 
+        startDate: new Date(yearInt, 7, 4),   // August 4
+        endDate: new Date(yearInt, 8, 6)      // September 6
       }
     };
     
-    return quarterDates[quarter] || quarterDates['Fall'];
+    const dates = quarterDates[quarter] || quarterDates['Winter'];
+    
+    console.log(`📅 Quarter dates for ${quarter} ${year}:`, 
+      dates.startDate.toDateString(), 'to', dates.endDate.toDateString());
+    
+    return dates;
   }
 
   /**
-   * Find first occurrence of weekday in date range
+   * Format UNTIL date for RRULE (must be in UTC)
    */
-  findFirstWeekdayInRange(weekday, startDate, endDate) {
-    const weekdayMap = {
-      'MO': 1, 'TU': 2, 'WE': 3, 'TH': 4, 'FR': 5, 'SA': 6, 'SU': 0
-    };
+  formatUntilDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}${month}${day}T235959Z`;
+  }
+
+  /**
+   * Escape text for ICS format
+   * In ICS, newlines must be represented as \n (backslash + n)
+   */
+  escapeICSText(text) {
+    if (!text) return '';
+    return text
+      .replace(/\\/g, '\\\\')      // Escape backslashes first
+      .replace(/;/g, '\\;')        // Escape semicolons
+      .replace(/,/g, '\\,')        // Escape commas
+      .replace(/\r\n/g, '\\n')     // Convert Windows newlines
+      .replace(/\r/g, '\\n')       // Convert old Mac newlines
+      .replace(/\n/g, '\\n');      // Convert Unix newlines
+  }
+
+  /**
+   * Find first weekday in range
+   */
+  findFirstWeekdayInRange(dayCode, startDate, endDate) {
+    const dayIndex = { 'MO': 1, 'TU': 2, 'WE': 3, 'TH': 4, 'FR': 5, 'SA': 6, 'SU': 0 };
+    const targetDay = dayIndex[dayCode];
     
-    const targetDay = weekdayMap[weekday];
-    if (targetDay === undefined) return null;
-    
-    const current = new Date(startDate);
-    
-    // Find first occurrence
-    while (current <= endDate) {
-      if (current.getDay() === targetDay) {
-        return new Date(current);
-      }
-      current.setDate(current.getDate() + 1);
+    if (targetDay === undefined) {
+      console.log('⚠️ Unknown day code:', dayCode);
+      return null;
     }
     
-    return null;
+    const date = new Date(startDate);
+    
+    // Find the first occurrence of the target day
+    while (date.getDay() !== targetDay && date <= endDate) {
+      date.setDate(date.getDate() + 1);
+    }
+    
+    return date <= endDate ? date : null;
   }
 
   /**
@@ -393,87 +424,49 @@ export class GoogleCalendarAPI {
   parseTimeToDate(timeStr, baseDate) {
     if (!timeStr || !baseDate) return null;
     
-    // Parse time like "2:00pm" or "11:30am"
-    const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})\s*(am|pm)/i);
-    if (!timeMatch) return null;
+    // Handle formats: "9:00am", "9:00a", "9:00 am", "9:00p", etc.
+    const match = String(timeStr).match(/(\d{1,2}):(\d{2})\s*([ap])m?/i);
+    if (!match) {
+      console.log('⚠️ Could not parse time:', timeStr);
+      return null;
+    }
     
-    let hours = parseInt(timeMatch[1]);
-    const minutes = parseInt(timeMatch[2]);
-    const period = timeMatch[3].toLowerCase();
+    let hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    const period = match[3].toLowerCase();
     
     // Convert to 24-hour format
-    if (period === 'pm' && hours !== 12) hours += 12;
-    if (period === 'am' && hours === 12) hours = 0;
+    if (period === 'p' && hours !== 12) {
+      hours += 12;
+    } else if (period === 'a' && hours === 12) {
+      hours = 0;
+    }
     
-    const dateTime = new Date(baseDate);
-    dateTime.setHours(hours, minutes, 0, 0);
+    const result = new Date(baseDate);
+    result.setHours(hours, minutes, 0, 0);
     
-    return dateTime;
+    return result;
   }
 
   /**
-   * Format date for ICS
+   * Format DateTime for ICS (YYYYMMDDTHHMMSS)
    */
   formatDateTimeForICS(date) {
-    if (!date) return '';
-    
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
-    
-    return `${year}${month}${day}T${hours}${minutes}${seconds}`;
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}T${pad(date.getHours())}${pad(date.getMinutes())}00`;
   }
 
   /**
-   * Format date for ICS (date only)
+   * Helper function to get quarter dates (for Google Calendar compatibility)
    */
-  formatDateForICS(date) {
-    if (!date) return '';
-    
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    
-    return `${year}${month}${day}`;
+  getQuarterDates(quarter, year) {
+    const { startDate, endDate } = this.getQuarterDatesForICS(quarter, year);
+    return { startDate, endDate };
   }
 
   /**
-   * Download ICS file
+   * Authenticate with Google using Chrome's identity API
    */
-  downloadICS(icsData) {
-    try {
-      console.log('📥 downloadICS called with:', icsData.filename);
-      
-      const blob = new Blob([icsData.content], { 
-        type: 'text/calendar;charset=utf-8' 
-      });
-      
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = icsData.filename;
-      
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      URL.revokeObjectURL(url);
-      
-      console.log('✅ downloadICS completed');
-      return true;
-      
-    } catch (error) {
-      console.error('❌ downloadICS failed:', error);
-      throw error;
-    }
-  }
-
-  // ===== GOOGLE CALENDAR API METHODS =====
-
-  // Authenticate with Google using Chrome's identity API
   async authenticate() {
     return new Promise((resolve, reject) => {
       chrome.identity.getAuthToken({ interactive: true }, (token) => {
@@ -490,6 +483,8 @@ export class GoogleCalendarAPI {
       });
     });
   }
+
+  // ===== GOOGLE CALENDAR API METHODS =====
 
   // Create multiple calendar events for Google Calendar
   async createMultipleEvents(eventsData, calendarId = 'primary', progressCallback = null) {
@@ -649,13 +644,12 @@ export class GoogleCalendarAPI {
   // Convert class days and times to ISO datetime for Google Calendar
   createDateTime(days, time, quarter, year) {
     // Get the first occurrence date based on quarter start and days
-    const quarterDates = this.getQuarterDates(quarter, year);
-    const startDate = new Date(quarterDates.recurringStart + 'T00:00:00');
+    const { startDate } = this.getQuarterDatesForICS(quarter, year);
     
     // Find the first occurrence of the class day
     const firstOccurrence = this.findFirstDayOccurrence(startDate, days);
     
-    // Parse the time (e.g., "2:00p" or "10:30a")
+    // Parse the time
     const { hours, minutes } = this.parseTime(time);
     
     firstOccurrence.setHours(hours, minutes, 0, 0);
@@ -708,19 +702,13 @@ export class GoogleCalendarAPI {
 
   // Create recurrence rule for repeating events in Google Calendar
   createRecurrenceRule(days, quarter, year) {
-    const quarterDates = this.getQuarterDates(quarter, year);
-    const classesEnd = this.getClassesEndDate(quarter, year);
-    const formattedEndDate = classesEnd.toISOString().split('T')[0].replace(/-/g, '');
+    const { endDate } = this.getQuarterDatesForICS(quarter, year);
+    const formattedEndDate = this.formatUntilDate(endDate);
     
     // Convert days to RRULE format
-    const dayMap = {
-      'M': 'MO', 'Tu': 'TU', 'W': 'WE', 'Th': 'TH', 'F': 'FR', 'Sa': 'SA', 'Su': 'SU'
-    };
+    const icsDays = this.convertDaysToICSFormat(days);
     
-    const classDays = this.parseDaysStringToArray(days);
-    const ruleDays = classDays.map(day => dayMap[day]).join(',');
-    
-    return [`RRULE:FREQ=WEEKLY;BYDAY=${ruleDays};UNTIL=${formattedEndDate}T235959Z`];
+    return [`RRULE:FREQ=WEEKLY;BYDAY=${icsDays};UNTIL=${formattedEndDate}`];
   }
 
   // ===== SHARED UTILITY METHODS =====
@@ -819,49 +807,12 @@ export class GoogleCalendarAPI {
     
     const date = new Date(startDateStr + 'T00:00:00');
     
+    // Find the first occurrence of the target day
     while (date.getDay() !== targetDay) {
       date.setDate(date.getDate() + 1);
     }
     
     return date;
-  }
-
-  // Parse time string (e.g., "2:00p", "10:30a")
-  parseTime(timeStr) {
-    const match = String(timeStr || '').match(/(\d{1,2}):(\d{2})([ap])/i);
-    if (!match) return { hours: 9, minutes: 0 };
-    
-    let hours = parseInt(match[1], 10);
-    const minutes = parseInt(match[2], 10);
-    const period = match[3].toLowerCase();
-    
-    if (period === 'p' && hours !== 12) hours += 12;
-    if (period === 'a' && hours === 12) hours = 0;
-    
-    return { hours, minutes };
-  }
-
-  // Format ICS DateTime
-  formatICSDateTime(date) {
-    const pad = (n) => String(n).padStart(2, '0');
-    return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}T${pad(date.getHours())}${pad(date.getMinutes())}00`;
-  }
-
-  // Get event color based on session type
-  getEventColor(sessionType) {
-    const colors = {
-      'Lecture': '1',      // Blue
-      'Discussion': '2',   // Green
-      'Lab': '6',         // Orange
-      'Final Exam': '4'   // Red
-    };
-    
-    return colors[sessionType] || '1';
-  }
-
-  // Utility delay function
-  delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   // Revoke authentication
@@ -873,25 +824,6 @@ export class GoogleCalendarAPI {
         console.log('Authentication revoked');
       });
     }
-  }
-
-  // ← NEW: Helper method to calculate weekly occurrences
-  calculateWeeklyOccurrences(daysStr, startDate, endDate) {
-    const weekdays = this.parseWeekdays(daysStr);
-    if (weekdays.length === 0) return 0;
-    
-    let totalOccurrences = 0;
-    const currentDate = new Date(startDate);
-    
-    while (currentDate <= endDate) {
-      const dayOfWeek = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'][currentDate.getDay()];
-      if (weekdays.includes(dayOfWeek)) {
-        totalOccurrences++;
-      }
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-    
-    return totalOccurrences;
   }
 }
 

@@ -44,6 +44,7 @@ export class CourseEvent {
   getNormalizedSessionType() {
     const type = this.sessionType.toLowerCase();
     if (type.includes('final') || type === 'fi') return 'Final Exam';
+    if (type.includes('midterm') || type === 'mi') return 'Midterm';
     if (type.includes('lec') || type === 'le') return 'Lecture';
     if (type.includes('dis') || type === 'di') return 'Discussion';
     if (type.includes('lab') || type === 'la') return 'Lab';
@@ -59,11 +60,7 @@ export class CourseEvent {
   getEventDescription() {
     const lines = [];
     
-    if (this.courseTitle) {
-      lines.push(`Course: ${this.courseCode} - ${this.courseTitle}`);
-    } else {
-      lines.push(`Course: ${this.courseCode}`);
-    }
+    lines.push(`Course: ${this.courseCode}${this.courseTitle ? ' - ' + this.courseTitle : ''}`);
     
     if (this.sectionCode) {
       lines.push(`Section: ${this.sectionCode}`);
@@ -81,9 +78,11 @@ export class CourseEvent {
       lines.push(`Quarter: ${this.quarter} ${this.year}`);
     }
     
-    lines.push('Created by Getting It Done');
+    lines.push('');  // Empty line before footer
+    lines.push('📚 Created by Getting It Done');
     
-    return lines.join('\\n');
+    // Join with actual newline characters (will be escaped later)
+    return lines.join('\n');
   }
 
   // Validate event has required data
