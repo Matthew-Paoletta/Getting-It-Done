@@ -3,6 +3,8 @@
  * Combined functionality from GoogleCalendarAPI and CalendarGenerator
  */
 
+import { getGoogleMapsLocation } from './schoolConfig.js';
+
 export class GoogleCalendarAPI {
   constructor() {
     this.accessToken = null;
@@ -197,6 +199,9 @@ export class GoogleCalendarAPI {
 
       const uid = `${examType.toLowerCase().replace(' ', '-')}-${event.courseCode.replace(/\s+/g, '')}-${quarter}-${year}@gettingitdone.ucsd`;
       
+      // Format location for Google Maps recognition
+      const mapsLocation = getGoogleMapsLocation(event.location, event.building, event.room);
+      
       return [
         'BEGIN:VEVENT',
         `UID:${uid}`,
@@ -204,7 +209,7 @@ export class GoogleCalendarAPI {
         `DTEND;TZID=America/Los_Angeles:${this.formatDateTimeForICS(endDateTime)}`,
         `SUMMARY:${event.courseCode} ${examType}`,
         `DESCRIPTION:${this.escapeICSText(event.getEventDescription())}`,
-        `LOCATION:${event.location || 'TBA'}`,
+        `LOCATION:${mapsLocation}`,
         'STATUS:CONFIRMED',
         'TRANSP:OPAQUE',
         'END:VEVENT'
@@ -265,6 +270,9 @@ export class GoogleCalendarAPI {
       // Format the UNTIL date (end of quarter at 11:59:59 PM UTC)
       const untilDate = this.formatUntilDate(endDate);
       
+      // Format location for Google Maps recognition
+      const mapsLocation = getGoogleMapsLocation(event.location, event.building, event.room);
+      
       // Build the VEVENT
       const vevent = [
         'BEGIN:VEVENT',
@@ -274,7 +282,7 @@ export class GoogleCalendarAPI {
         `RRULE:FREQ=WEEKLY;BYDAY=${icsDays};UNTIL=${untilDate}`,
         `SUMMARY:${event.courseCode} - ${event.getNormalizedSessionType()}`,
         `DESCRIPTION:${this.escapeICSText(event.getEventDescription())}`,
-        `LOCATION:${event.location || 'TBA'}`,
+        `LOCATION:${mapsLocation}`,
         'STATUS:CONFIRMED',
         'TRANSP:OPAQUE',
         'END:VEVENT'

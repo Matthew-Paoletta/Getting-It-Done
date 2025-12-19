@@ -8,6 +8,317 @@ import { googleCalendarAPI } from './googleCalendar.js';
 
 console.log('🚀 Popup.js loaded');
 
+// ===== TIME OPTIONS FOR DROPDOWNS =====
+// Classes can start as early as 8am, end as late as 9:20pm
+// Times end in :00, :10, :20, :30, :40, :50
+const TIME_OPTIONS = [];
+for (let hour = 8; hour <= 21; hour++) {
+  for (let minute of [0, 10, 20, 30, 40, 50]) {
+    // Skip times after 9:20pm
+    if (hour === 21 && minute > 20) continue;
+    
+    const h12 = hour % 12 || 12;
+    const suffix = hour >= 12 ? 'p' : 'a';
+    const minStr = minute.toString().padStart(2, '0');
+    const display = `${h12}:${minStr}${suffix}m`;
+    const value = `${h12}:${minStr}${suffix}`;
+    TIME_OPTIONS.push({ value, display });
+  }
+}
+
+// Day pattern options
+const DAY_OPTIONS = [
+  { value: 'M', display: 'Monday (M)' },
+  { value: 'Tu', display: 'Tuesday (Tu)' },
+  { value: 'W', display: 'Wednesday (W)' },
+  { value: 'Th', display: 'Thursday (Th)' },
+  { value: 'F', display: 'Friday (F)' },
+  { value: 'MW', display: 'Mon/Wed (MW)' },
+  { value: 'MWF', display: 'Mon/Wed/Fri (MWF)' },
+  { value: 'TuTh', display: 'Tue/Thu (TuTh)' },
+  { value: 'WF', display: 'Wed/Fri (WF)' },
+  { value: 'MF', display: 'Mon/Fri (MF)' },
+  { value: 'MTuWThF', display: 'Every Weekday' }
+];
+
+// ===== CHECK FOR MISSING INFO =====
+// Only prompt for TRULY MISSING values - trust OCR if it read something
+function checkForMissingInfo(events) {
+  const eventsNeedingReview = [];
+  
+  events.forEach((event, index) => {
+    const issues = [];
+    const isExam = event.sessionType === 'Final Exam' || event.sessionType === 'Midterm';
+    
+    // Check for missing days (for non-exam recurring events)
+    // Only flag if completely missing - trust OCR if it read any day value
+    if (!isExam) {
+      if (!event.days || event.days === '' || event.days === 'MISSING_DAY') {
+        issues.push({
+          field: 'days',
+          question: `What day(s) does your ${event.sessionType || 'class'} meet?`,
+          type: 'select',
+          options: DAY_OPTIONS
+        });
+      }
+      // If OCR read something (even "TBA" or unusual), trust it
+    }
+    
+    // Check for MISSING start time only - trust OCR if it read anything
+    if (!event.startTime || event.startTime === '') {
+      issues.push({
+        field: 'startTime',
+        question: 'What time does this class START?',
+        type: 'time-select',
+        currentValue: ''
+      });
+    }
+    
+    // Check for MISSING end time only - trust OCR if it read anything
+    if (!event.endTime || event.endTime === '') {
+      issues.push({
+        field: 'endTime',
+        question: 'What time does this class END?',
+        type: 'time-select',
+        currentValue: ''
+      });
+    }
+    
+    // Check for exam-specific date - only if completely missing
+    if (isExam) {
+      if (event.sessionType === 'Final Exam' && !event.finalDate) {
+        issues.push({
+          field: 'examDate',
+          question: 'What DATE is your Final Exam?',
+          type: 'date'
+        });
+      }
+      if (event.sessionType === 'Midterm' && !event.midtermDate) {
+        issues.push({
+          field: 'examDate',
+          question: 'What DATE is your Midterm?',
+          type: 'date'
+        });
+      }
+    }
+    
+    if (issues.length > 0) {
+      eventsNeedingReview.push({ index, event, issues });
+    }
+  });
+  
+  return eventsNeedingReview;
+}
+
+// ===== DISPLAY REVIEW FORM FOR MISSING INFO =====
+function displayMissingInfoReview(events, eventsNeedingReview, quarter, year) {
+  console.log('🔍 Showing review form for', eventsNeedingReview.length, 'events with missing info');
+  
+  const resultArea = document.getElementById('result-area');
+  if (!resultArea) return;
+  
+  // Build review cards
+  const reviewCards = eventsNeedingReview.map(({ index, event, issues }) => {
+    const sessionType = event.sessionType || 'Unknown';
+    const color = getSessionColor(sessionType);
+    
+    // Build questions HTML
+    const questionsHtml = issues.map(issue => {
+      let inputHtml = '';
+      
+      if (issue.type === 'select') {
+        // Day selection dropdown
+        const options = issue.options.map(opt => 
+          `<option value="${opt.value}">${opt.display}</option>`
+        ).join('');
+        inputHtml = `
+          <select class="review-select" data-field="${issue.field}">
+            <option value="">-- Select --</option>
+            ${options}
+          </select>
+        `;
+      } else if (issue.type === 'time-select') {
+        // Time dropdown
+        const options = TIME_OPTIONS.map(opt => 
+          `<option value="${opt.value}">${opt.display}</option>`
+        ).join('');
+        inputHtml = `
+          <select class="review-select time-select" data-field="${issue.field}">
+            <option value="">-- Select Time --</option>
+            ${options}
+          </select>
+          ${issue.currentValue ? `<span class="ocr-hint">OCR read: "${issue.currentValue}"</span>` : ''}
+        `;
+      } else if (issue.type === 'date') {
+        // Date picker
+        inputHtml = `
+          <input type="date" class="review-date" data-field="${issue.field}">
+        `;
+      }
+      
+      return `
+        <div class="review-question">
+          <label class="question-label">❓ ${issue.question}</label>
+          <div class="question-input">
+            ${inputHtml}
+          </div>
+        </div>
+      `;
+    }).join('');
+    
+    // Show what we DID successfully read
+    const readInfo = [];
+    if (event.courseCode) readInfo.push(`📚 ${event.courseCode}`);
+    if (event.days && event.days !== 'MISSING_DAY' && event.days !== 'TBA') readInfo.push(`📅 ${event.days}`);
+    if (event.startTime && /^\d{1,2}:\d{2}[ap]$/i.test(event.startTime)) readInfo.push(`⏰ ${event.startTime}`);
+    if (event.endTime && /^\d{1,2}:\d{2}[ap]$/i.test(event.endTime)) readInfo.push(`⏰ to ${event.endTime}`);
+    if (event.location && event.location !== 'TBA') readInfo.push(`📍 ${event.location}`);
+    
+    return `
+      <div class="review-card" data-event-index="${index}">
+        <div class="review-header">
+          <span class="type-pill" style="background:${color}22;color:${color};border:1px solid ${color}44;">
+            ${sessionType}
+          </span>
+          <span class="review-course">${event.courseCode || 'Unknown Course'}</span>
+        </div>
+        ${event.courseTitle ? `<div class="review-title">${event.courseTitle}</div>` : ''}
+        ${readInfo.length > 0 ? `
+          <div class="review-detected">
+            <span class="detected-label">✅ Detected:</span> ${readInfo.join(' • ')}
+          </div>
+        ` : ''}
+        <div class="review-questions">
+          ${questionsHtml}
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  // Count events that are OK
+  const okCount = events.length - eventsNeedingReview.length;
+  
+  resultArea.innerHTML = `
+    <section class="results-wrap">
+      <h2 class="results-title">🔍 Some Info Needs Your Help</h2>
+      <div class="results-subtitle">
+        We found ${events.length} events, but ${eventsNeedingReview.length} need some info filled in.
+        ${okCount > 0 ? `<br><span style="color: var(--success);">✅ ${okCount} events look good!</span>` : ''}
+      </div>
+      
+      <div class="review-tip">
+        💡 <strong>Why?</strong> OCR sometimes misreads text. Please verify the info below.
+      </div>
+      
+      <div class="review-cards">
+        ${reviewCards}
+      </div>
+      
+      <div class="review-actions">
+        <button id="apply-fixes-btn" class="btn primary">
+          ✅ Apply & Continue
+        </button>
+        <button id="skip-problem-events-btn" class="btn secondary">
+          ⏭️ Skip These (use ${okCount} good ones)
+        </button>
+      </div>
+    </section>
+  `;
+  
+  // Setup Apply button
+  document.getElementById('apply-fixes-btn')?.addEventListener('click', () => {
+    console.log('✅ Applying user corrections...');
+    
+    // Gather all corrections from the form
+    document.querySelectorAll('.review-card').forEach(card => {
+      const eventIndex = parseInt(card.dataset.eventIndex);
+      const event = events[eventIndex];
+      
+      // Get day selection
+      const daySelect = card.querySelector('[data-field="days"]');
+      if (daySelect?.value) {
+        event.days = daySelect.value;
+        console.log(`✅ Set ${event.courseCode} days to: ${event.days}`);
+      }
+      
+      // Get start time
+      const startSelect = card.querySelector('[data-field="startTime"]');
+      if (startSelect?.value) {
+        event.startTime = startSelect.value;
+        console.log(`✅ Set ${event.courseCode} start time to: ${event.startTime}`);
+      }
+      
+      // Get end time
+      const endSelect = card.querySelector('[data-field="endTime"]');
+      if (endSelect?.value) {
+        event.endTime = endSelect.value;
+        console.log(`✅ Set ${event.courseCode} end time to: ${event.endTime}`);
+      }
+      
+      // Get exam date
+      const dateInput = card.querySelector('[data-field="examDate"]');
+      if (dateInput?.value) {
+        if (event.sessionType === 'Final Exam') {
+          event.finalDate = dateInput.value;
+        } else if (event.sessionType === 'Midterm') {
+          event.midtermDate = dateInput.value;
+        }
+        console.log(`✅ Set ${event.courseCode} exam date`);
+      }
+    });
+    
+    // Filter out events still missing critical info
+    const validEvents = events.filter(e => {
+      const isExam = e.sessionType === 'Final Exam' || e.sessionType === 'Midterm';
+      const hasDays = isExam || (e.days && e.days !== 'MISSING_DAY' && e.days !== 'TBA');
+      const hasTime = e.startTime && e.endTime;
+      return hasDays && hasTime;
+    });
+    
+    console.log(`📊 ${validEvents.length} events ready after corrections`);
+    
+    if (validEvents.length === 0) {
+      alert('Please fill in at least the day and time fields to continue.');
+      return;
+    }
+    
+    // Go directly to results - no more review loops!
+    displayScheduleResults(validEvents, quarter, year);
+  });
+  
+  // Setup Skip button
+  document.getElementById('skip-problem-events-btn')?.addEventListener('click', () => {
+    // Get only the events that don't need review
+    const goodEventIndices = new Set(eventsNeedingReview.map(r => r.index));
+    const goodEvents = events.filter((_, i) => !goodEventIndices.has(i));
+    
+    console.log(`⏭️ Skipping ${eventsNeedingReview.length} problem events, using ${goodEvents.length}`);
+    
+    if (goodEvents.length === 0) {
+      alert('All events need review. Please fill in the missing info to continue.');
+      return;
+    }
+    
+    displayScheduleResults(goodEvents, quarter, year);
+  });
+}
+
+// ===== ENTRY POINT: Check events and show review if needed =====
+export function processAndDisplayEvents(events, quarter, year) {
+  console.log('🔄 Processing', events.length, 'events...');
+  
+  // Check for missing info
+  const eventsNeedingReview = checkForMissingInfo(events);
+  
+  if (eventsNeedingReview.length > 0) {
+    // Show review form
+    displayMissingInfoReview(events, eventsNeedingReview, quarter, year);
+  } else {
+    // All events look good, show results directly
+    displayScheduleResults(events, quarter, year);
+  }
+}
+
 // ===== UI HELPER FUNCTIONS =====
 function getSessionColor(type) {
   const map = { 
@@ -15,7 +326,7 @@ function getSessionColor(type) {
     Discussion: '#22aa88', 
     Lab: '#cc6600', 
     'Final Exam': '#8a5cf0',
-    'Midterm': '#e91e63'  // Pink for midterms
+    'Midterm': '#e91e63'
   };
   return map[type] || '#667eea';
 }
@@ -239,7 +550,7 @@ export function setupExportButtons(events, quarter, year) {
           const icsData = googleCalendarAPI.generateICSFile(events, quarter, year);
           console.log('✅ ICS generated:', icsData.filename);
           
-          // ← MOVED TO POPUP.JS: Display ICS events in popup BEFORE download
+          // Display ICS events in popup BEFORE download
           displayICSEventsPreview(icsData.icsEvents, icsData.filename);
           
           console.log('📥 Starting download...');
@@ -358,105 +669,6 @@ export function setupExportButtons(events, quarter, year) {
   console.log('🎯 Export buttons setup initiated');
 }
 
-// ===== NEW: Display OCR results for debugging =====
-export function displayOCRText(ocrResult, quarter, year) {
-  console.log('🔍 Displaying OCR text for analysis');
-  
-  const resultArea = document.getElementById('result-area');
-  if (!resultArea) return;
-  
-  // Create OCR text display
-  const ocrDisplayHtml = `
-    <section class="results-wrap">
-      <h2 class="results-title">🔍 OCR Analysis Results</h2>
-      <div class="results-subtitle">Text extracted from your WebReg screenshot • ${quarter} ${year}</div>
-      
-      <div style="margin: 16px 0;">
-        <div style="background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 6px; padding: 12px; margin-bottom: 16px;">
-          <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 14px;">📊 OCR Metadata:</h4>
-          <div style="font-size: 12px; color: #6c757d;">
-            <span style="margin-right: 16px;">📁 File: ${ocrResult.metadata.fileName}</span>
-            <span style="margin-right: 16px;">📏 Size: ${Math.round(ocrResult.metadata.fileSize / 1024)} KB</span>
-            <span style="margin-right: 16px;">⏱️ Processing: ${ocrResult.metadata.processingTime}ms</span>
-            <span>🔧 Engine: ${ocrResult.metadata.ocrEngine}</span>
-          </div>
-        </div>
-
-        <div style="background: #fff; border: 2px solid #007bff; border-radius: 6px; padding: 16px; margin-bottom: 16px;">
-          <h4 style="margin: 0 0 12px 0; color: #007bff; font-size: 14px;">
-            📄 Raw OCR Text (${ocrResult.text.length} characters)
-          </h4>
-          <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: 12px; font-family: 'Courier New', monospace; font-size: 11px; line-height: 1.4; max-height: 400px; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word;">
-${ocrResult.text}
-          </div>
-        </div>
-
-        <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 12px; margin-bottom: 16px;">
-          <h4 style="margin: 0 0 8px 0; color: #856404; font-size: 14px;">🔧 Debug Information:</h4>
-          <div style="font-size: 12px; color: #856404; line-height: 1.5;">
-            <strong>What we're looking for:</strong><br>
-            • Course codes (like "CSE 105", "MATH 18", "BILD 1")<br>
-            • Session types (Lecture, Discussion, Lab, Final Exam)<br>
-            • Days (MW, TuTh, MWF, etc.)<br>
-            • Times (like "2:00pm-3:20pm")<br>
-            • Locations (CENTR 101, WLH 2005, etc.)<br>
-            • Instructors (Last, First format)<br><br>
-            <strong>Parsing will start after you analyze this text...</strong>
-          </div>
-        </div>
-
-        <div class="export-buttons" style="text-align: center;">
-          <button id="continue-parsing-btn" class="btn primary" style="margin-right: 12px;">
-            ✅ Continue with Parsing
-          </button>
-          <button id="retry-ocr-btn" class="btn secondary">
-            🔄 Try Different Image
-          </button>
-        </div>
-      </div>
-    </section>
-  `;
-  
-  resultArea.innerHTML = ocrDisplayHtml;
-  
-  // Set up continue button
-  const continueBtn = document.getElementById('continue-parsing-btn');
-  if (continueBtn) {
-    continueBtn.onclick = () => {
-      console.log('🚀 User approved OCR text, continuing with parsing...');
-      
-      // Now parse the events
-      const events = scheduleParser.parseTextToEvents(ocrResult.text, quarter, year);
-      
-      if (!events || events.length === 0) {
-        displayError(new Error('No class schedule data could be parsed from the OCR text'));
-        return;
-      }
-
-      // Validate events
-      const validEvents = events.filter(event => event.isValid());
-      if (validEvents.length === 0) {
-        displayError(new Error('No valid events could be created from the schedule data'));
-        return;
-      }
-
-      console.log('✅ Schedule parsing completed');
-      console.log(`📊 Created ${validEvents.length} valid events`);
-
-      // Display results
-      displayScheduleResults(validEvents, quarter, year);
-    };
-  }
-  
-  // Set up retry button
-  const retryBtn = document.getElementById('retry-ocr-btn');
-  if (retryBtn) {
-    retryBtn.onclick = () => {
-      location.reload();
-    };
-  }
-}
-
 // ===== INPUT METHOD TOGGLE =====
 function setupInputMethodToggle() {
   const imageMethodBtn = document.getElementById('method-image');
@@ -565,8 +777,8 @@ function handleTextParsing() {
 
     console.log(`✅ Parsed ${result.events.length} events`);
 
-    // Display results using existing display function
-    displayScheduleResults(result.events, quarter, year);
+    // Process events and check for missing info
+    processAndDisplayEvents(result.events, quarter, year);
 
     // Show success feedback
     parseBtn.innerHTML = '✅ Parsed!';

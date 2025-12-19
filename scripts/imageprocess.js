@@ -3,7 +3,7 @@
  * Combined: Image OCR + Schedule Processing + UI Logic
  */
 import { scheduleParser } from './scheduleParser.js';
-import { displayScheduleResults, displayError } from './popup.js'; // ← IMPORT FROM POPUP.JS
+import { processAndDisplayEvents, displayError } from './popup.js'; // ← IMPORT FROM POPUP.JS
 
 console.log('🚀 ImageProcess.js loaded');
 
@@ -65,9 +65,10 @@ class ImageProcessor {
     formData.append('language', 'eng');
     formData.append('isTable', 'true');
     formData.append('scale', 'true');
-    formData.append('OCREngine', '2');
+    formData.append('OCREngine', '2');  // Engine 2 captures more rows including ones with empty leading cells
     formData.append('detectOrientation', 'true');
     formData.append('isCreateSearchablePdf', 'false');
+    formData.append('isOverlayRequired', 'true');  // Get coordinate data for better parsing
     formData.append('base64Image', base64Image);
 
     try {
@@ -94,6 +95,18 @@ class ImageProcessor {
       }
 
       const extractedText = result.ParsedResults?.[0]?.ParsedText || '';
+      
+      // DEBUG: Log the raw OCR output to console
+      console.log('=== RAW OCR TEXT ===');
+      console.log(extractedText);
+      console.log('=== END OCR TEXT ===');
+      
+      // Check if DI (Discussion) appears anywhere
+      if (extractedText.includes('DI') || extractedText.includes('Di')) {
+        console.log('✅ Found DI (Discussion) in OCR text');
+      } else {
+        console.log('⚠️ WARNING: No DI (Discussion) found in OCR text - OCR may be missing rows');
+      }
       
       if (!extractedText.trim()) {
         throw new Error('No text could be extracted from the image. Please ensure the image is clear and contains visible text.');
@@ -130,6 +143,13 @@ class ImageProcessor {
       console.error('WebReg processing failed:', error);
       throw error;
     }
+  }
+
+  cleanText(rawText) {
+    return String(rawText)
+      .replace(/\t+/g, ' ')  // ← THIS DESTROYS THE TABS!
+      .replace(/\s+/g, ' ')  // ← THIS COLLAPSES ALL WHITESPACE
+      .trim();
   }
 }
 
@@ -243,13 +263,19 @@ export function setupImageProcess() {
 
       console.log('✅ Text extraction completed');
 
-      // Step 2: Display OCR text for analysis - NEW!
-      console.log('Step 2: Display OCR Results');
-      import('./popup.js').then(({ displayOCRText }) => {
-        displayOCRText(ocrResult, quarter, year);
-      });
+      // Step 2: Parse the OCR text directly into events
+      console.log('Step 2: Parsing OCR text into events...');
       
-      console.log('🔍 OCR text displayed for analysis');
+      const events = scheduleParser.parseTextToEvents(ocrResult.text, quarter, year);
+      
+      console.log(`📊 Parsed ${events.length} events from OCR`);
+      
+      // Step 3: Display the results (with review if missing info)
+      if (events.length > 0) {
+        processAndDisplayEvents(events, quarter, year);
+      } else {
+        throw new Error('No events could be parsed from the image. Please try a clearer screenshot.');
+      }
       
     } catch (error) {
       displayError(error);
@@ -259,7 +285,7 @@ export function setupImageProcess() {
       processBtn.textContent = originalText;
     }
   });
-  
+
   console.log('✅ Image processing setup completed');
 }
 
