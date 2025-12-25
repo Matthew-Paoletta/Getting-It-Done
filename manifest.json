@@ -14,7 +14,7 @@
     "https://accounts.google.com/*"
   ],
   "oauth2": {
-    "client_id": "getting-it-done-468723.apps.googleusercontent.com",
+    "client_id": "119520037531-jq1mtnthlbfliqs7hbdou17vrbjsghb3.apps.googleusercontent.com",
     "scopes": [
       "https://www.googleapis.com/auth/calendar.events"
     ]

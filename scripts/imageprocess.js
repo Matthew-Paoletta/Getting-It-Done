@@ -208,6 +208,64 @@ export function setupImageProcess() {
         fileInput.click();
       }
     });
+
+    // Drag and drop handlers
+    uploadArea.addEventListener('dragenter', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      uploadArea.classList.add('drag-over');
+      console.log('📥 Drag enter');
+    });
+
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      uploadArea.classList.add('drag-over');
+    });
+
+    uploadArea.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      uploadArea.classList.remove('drag-over');
+      console.log('📤 Drag leave');
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      uploadArea.classList.remove('drag-over');
+      console.log('📁 File dropped');
+
+      const files = e.dataTransfer?.files;
+      if (files && files.length > 0) {
+        const file = files[0];
+        
+        // Validate it's an image
+        if (!file.type.startsWith('image/')) {
+          if (uploadStatus) {
+            uploadStatus.textContent = '❌ Please drop an image file';
+          }
+          console.log('❌ Dropped file is not an image:', file.type);
+          return;
+        }
+
+        // Set the file as selected (same as file input change)
+        selectedFile = file;
+        
+        if (fileInfo) {
+          fileInfo.style.display = 'block';
+        }
+        
+        const sizeKB = Math.max(1, Math.round(file.size / 1024));
+        if (uploadStatus) {
+          uploadStatus.textContent = `✅ Dropped: ${file.name} (${sizeKB} KB)`;
+        }
+        
+        processBtn.style.display = 'inline-flex';
+        
+        console.log('✅ Dropped file ready for processing:', file.name, `${sizeKB}KB`);
+      }
+    });
   }
 
   // File selection handler

@@ -218,6 +218,7 @@ export class ScheduleParser {
     let currentCourse = null;
     let currentTitle = '';
     let currentInstructor = '';
+    let currentSection = '';  // Track section for inheritance - updated by Discussion/Lab
     
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -246,38 +247,48 @@ export class ScheduleParser {
           currentCourse = parsed.courseCode;
           currentTitle = parsed.courseTitle;
           currentInstructor = parsed.instructor;
+          // Start with main section, but will be overwritten by Discussion/Lab section
+          currentSection = parsed.event.sectionCode || '';
           events.push(parsed.event);
-          console.log(`  ✅ Added main course: ${parsed.courseCode} - ${parsed.event.sessionType}`);
+          console.log(`  ✅ Added main course: ${parsed.courseCode} - ${parsed.event.sessionType} (Section: ${currentSection})`);
         }
         continue;
       }
       
-      // Check for Midterm line
-      if (this.isMidtermLine(line) && currentCourse) {
-        const parsed = this.parseMidtermLine(fields, currentCourse, currentTitle, currentInstructor, quarter, year);
-        if (parsed) {
-          events.push(parsed);
-          console.log(`  ✅ Added midterm: ${currentCourse}`);
-        }
-        continue;
-      }
-      
-      // Check for Final Exam line
-      if (this.isFinalExamLine(line) && currentCourse) {
-        const parsed = this.parseFinalExamLine(fields, currentCourse, currentTitle, currentInstructor, quarter, year);
-        if (parsed) {
-          events.push(parsed);
-          console.log(`  ✅ Added final exam: ${currentCourse}`);
-        }
-        continue;
-      }
-      
-      // Check for secondary session line (section code like A01, B01)
+      // Check for secondary session line (section code like A01, B01) - BEFORE exams
+      // So that Discussion/Lab section can be captured for exam inheritance
       if (this.isSectionCodeStart(fields[0]) && currentCourse) {
         const parsed = this.parseSecondarySessionLine(fields, currentCourse, currentTitle, currentInstructor, quarter, year);
         if (parsed) {
+          // If secondary session has its own section (A01, B01), use it AND update currentSection
+          // This section will be inherited by subsequent exams
+          if (parsed.sectionCode) {
+            currentSection = parsed.sectionCode;  // Update for exam inheritance
+          } else if (currentSection) {
+            parsed.sectionCode = currentSection;
+          }
           events.push(parsed);
-          console.log(`  ✅ Added secondary session: ${currentCourse} - ${parsed.sessionType}`);
+          console.log(`  ✅ Added secondary session: ${currentCourse} - ${parsed.sessionType} (Section: ${parsed.sectionCode || 'unknown'})`);
+        }
+        continue;
+      }
+      
+      // Check for Midterm line - AFTER secondary sessions so we inherit their section
+      if (this.isMidtermLine(line) && currentCourse) {
+        const parsed = this.parseMidtermLine(fields, currentCourse, currentTitle, currentInstructor, currentSection, quarter, year);
+        if (parsed) {
+          events.push(parsed);
+          console.log(`  ✅ Added midterm: ${currentCourse} (Section: ${currentSection})`);
+        }
+        continue;
+      }
+      
+      // Check for Final Exam line - AFTER secondary sessions so we inherit their section
+      if (this.isFinalExamLine(line) && currentCourse) {
+        const parsed = this.parseFinalExamLine(fields, currentCourse, currentTitle, currentInstructor, currentSection, quarter, year);
+        if (parsed) {
+          events.push(parsed);
+          console.log(`  ✅ Added final exam: ${currentCourse} (Section: ${currentSection})`);
         }
         continue;
       }
@@ -346,6 +357,9 @@ export class ScheduleParser {
       const courseCode = fields[0]?.trim() || '';
       const courseTitle = fields[1]?.trim() || '';
       
+      // Action words to exclude from room detection
+      const actionWords = ['DROP', 'CHANGE', 'ENROLLED', 'WAITLIST', 'STATUS', 'POSITION', 'ACTION'];
+      
       // Find key fields by pattern matching (more robust than fixed positions)
       let sectionCode = '', sessionType = '', instructor = '', days = '', timeRange = '', building = '', room = '';
       
@@ -353,17 +367,20 @@ export class ScheduleParser {
         const field = fields[i]?.trim() || '';
         if (!field) continue;
         
-        // Section code (A00, B00)
-        if (/^[A-Z][0-9O]{2}$/i.test(field)) {
+        // Skip action column words entirely
+        if (actionWords.includes(field.toUpperCase())) continue;
+        
+        // Section code (A00, A01, B00 - must start with A-F, not R which is often a room)
+        if (/^[A-F][0-9O]{2}$/i.test(field)) {
           sectionCode = field.replace(/O/g, '0');
         }
         // Session type (LE, DI, LA)
         else if (/^(LE|DI|LA)$/i.test(field)) {
           sessionType = this.normalizeSessionType(field);
         }
-        // Instructor (contains comma: "Last, First")
+        // Instructor (contains comma: "Last, First") - clean trailing colons
         else if (field.includes(',') && !field.match(/^\d/) && field.length > 3) {
-          instructor = field;
+          instructor = field.replace(/:$/, '').trim();
         }
         // Days (M, Tu, W, Th, F, MWF, TuTh, etc.)
         else if (this.isDaysPattern(field)) {
@@ -377,8 +394,8 @@ export class ScheduleParser {
         else if (this.isBuildingCode(field)) {
           building = field;
         }
-        // Room number (108, 101, AUD, 1A18)
-        else if (/^[A-Z0-9]{2,5}$/i.test(field) && !['LE', 'DI', 'LA', 'FI', 'MI', 'L', 'P'].includes(field.toUpperCase())) {
+        // Room number (108, 101, AUD, 1A18, R24) - exclude action words
+        else if (/^[A-Z0-9]{2,5}$/i.test(field) && !['LE', 'DI', 'LA', 'FI', 'MI', 'L', 'P'].includes(field.toUpperCase()) && !actionWords.includes(field.toUpperCase())) {
           if (!building) {
             building = field;
           } else {
@@ -418,14 +435,20 @@ export class ScheduleParser {
     try {
       console.log('    Parsing secondary session with fields:', fields);
       
+      // Action words to exclude
+      const actionWords = ['DROP', 'CHANGE', 'ENROLLED', 'WAITLIST', 'STATUS', 'POSITION', 'ACTION'];
+      
       let sectionCode = '', sessionType = '', days = '', timeRange = '', building = '', room = '';
       
       for (let i = 0; i < fields.length; i++) {
         const field = fields[i]?.trim() || '';
         if (!field) continue;
         
-        // Section code (A01, B01, etc.)
-        if (/^[A-Z][0-9O]{2}$/i.test(field)) {
+        // Skip action column words entirely
+        if (actionWords.includes(field.toUpperCase())) continue;
+        
+        // Section code (A01, B01 - must start with A-F, not R which is often a room)
+        if (/^[A-F][0-9O]{2}$/i.test(field)) {
           sectionCode = field.replace(/O/g, '0');
         }
         // Session type (DI, LA)
@@ -448,8 +471,8 @@ export class ScheduleParser {
         else if (this.isBuildingCode(field)) {
           building = field;
         }
-        // Room number (002, 108, AUD, 1A18)
-        else if (/^[A-Z0-9]{2,5}$/i.test(field) && !['LE', 'DI', 'LA', 'FI', 'MI', 'L', 'W', 'M', 'F'].includes(field.toUpperCase())) {
+        // Room number (002, 108, AUD, 1A18, R24) - exclude action words
+        else if (/^[A-Z0-9]{2,5}$/i.test(field) && !['LE', 'DI', 'LA', 'FI', 'MI', 'L', 'W', 'M', 'F'].includes(field.toUpperCase()) && !actionWords.includes(field.toUpperCase())) {
           if (!building) {
             building = field;
           } else if (!room) {
@@ -466,22 +489,23 @@ export class ScheduleParser {
         days = 'MISSING_DAY'; // Don't guess - let user see this needs review
       }
       
-      if (!timeRange) {
-        console.log('    ⚠️ No time found, skipping');
-        return null;
+      // Allow TBA events (no time) - they'll be flagged in the UI
+      if (!timeRange && (!days || days === 'TBA')) {
+        console.log('    ⚠️ TBA event detected (no time/days)');
+        days = 'TBA';
       }
       
-      console.log(`    ✅ Secondary session: ${sessionType} on ${days} at ${times.start}-${times.end}`);
+      console.log(`    ✅ Secondary session: ${sessionType} on ${days} at ${times.start || 'TBA'}-${times.end || 'TBA'}`);
       
       return new CourseEvent({
         courseCode,
         courseTitle,
         sessionType: sessionType || 'Discussion',
-        sectionCode,
+        sectionCode,  // Keep parsed section code
         instructor,
         days,
-        startTime: times.start,
-        endTime: times.end,
+        startTime: times.start || '',  // Empty string for TBA
+        endTime: times.end || '',      // Empty string for TBA
         location: building && room ? `${building} ${room}` : building || room || 'TBA',
         building,
         room,
@@ -494,15 +518,18 @@ export class ScheduleParser {
     }
   }
   
-  parseMidtermLine(fields, courseCode, courseTitle, instructor, quarter, year) {
+  parseMidtermLine(fields, courseCode, courseTitle, instructor, inheritedSection, quarter, year) {
     try {
       console.log('    Parsing midterm with fields:', fields);
+      
+      // Action words to exclude
+      const actionWords = ['DROP', 'CHANGE', 'ENROLLED', 'WAITLIST', 'STATUS', 'POSITION', 'ACTION'];
       
       let examDay = '', examDate = '', timeRange = '', building = '', room = '';
       
       for (const field of fields) {
         const f = field?.trim() || '';
-        if (!f || f === 'Midterm' || f === 'MI') continue;
+        if (!f || f === 'Midterm' || f === 'MI' || actionWords.includes(f.toUpperCase())) continue;
         
         // Day + Date pattern: "Sa 02/07/2026"
         const dayDateMatch = f.match(/^(M|Tu|W|Th|F|Sa|Su)\s+(\d{1,2}\/\d{1,2}\/\d{2,4})$/i);
@@ -538,7 +565,7 @@ export class ScheduleParser {
         courseCode,
         courseTitle,
         sessionType: 'Midterm',
-        sectionCode: 'MI',
+        sectionCode: inheritedSection || '',  // Use inherited section, leave empty if unknown
         instructor,
         days: examDay,
         startTime: times.start,
@@ -557,15 +584,18 @@ export class ScheduleParser {
     }
   }
   
-  parseFinalExamLine(fields, courseCode, courseTitle, instructor, quarter, year) {
+  parseFinalExamLine(fields, courseCode, courseTitle, instructor, inheritedSection, quarter, year) {
     try {
       console.log('    Parsing final exam with fields:', fields);
+      
+      // Action words to exclude
+      const actionWords = ['DROP', 'CHANGE', 'ENROLLED', 'WAITLIST', 'STATUS', 'POSITION', 'ACTION'];
       
       let finalDay = '', finalDate = '', timeRange = '', building = '', room = '';
       
       for (const field of fields) {
         const f = field?.trim() || '';
-        if (!f || f === 'Final Exam' || f === 'FI') continue;
+        if (!f || f === 'Final Exam' || f === 'FI' || actionWords.includes(f.toUpperCase())) continue;
         
         // Day + Date pattern: "W 03/18/2026", "Sa 03/14/2026"
         const dayDateMatch = f.match(/^(M|Tu|W|Th|F|Sa|Su)\s+(\d{1,2}\/\d{1,2}\/\d{2,4})$/i);
@@ -601,7 +631,7 @@ export class ScheduleParser {
         courseCode,
         courseTitle,
         sessionType: 'Final Exam',
-        sectionCode: 'FI',
+        sectionCode: inheritedSection || '',  // Use inherited section, leave empty if unknown
         instructor,
         days: finalDay,
         startTime: times.start,
@@ -649,13 +679,36 @@ export class ScheduleParser {
   
   isBuildingCode(field) {
     const f = field?.trim().toUpperCase() || '';
-    const knownBuildings = [
-      'PETER', 'CENTR', 'CENTER', 'WLH', 'YORK', 'SOLIS', 'LEDDN', 'LEDN',
-      'APM', 'HSS', 'CSB', 'EBU3B', 'PCYNH', 'MANDE', 'FAH', 'RWAC', 
-      'MOGU', 'DIB', 'MOS', 'PODEM', 'SEQUO', 'GALB', 'TBA', 'REMOTE'
+    
+    // Action column words to EXCLUDE - these should never be treated as buildings
+    const excludeWords = [
+      'DROP', 'CHANGE', 'ENROLLED', 'WAITLIST', 'STATUS', 'POSITION',
+      'LE', 'DI', 'LA', 'FI', 'MI', 'MWF', 'TUTH', 'ACTION'
     ];
+    if (excludeWords.includes(f)) return false;
+    
+    // All known UCSD buildings (from schoolConfig.js)
+    const knownBuildings = [
+      // Main Lecture Halls
+      'CENTR', 'CENTER', 'LEDDN', 'LEDN', 'YORK', 'PCYNH', 'PETER', 'WLH', 'SOLIS', 'PODEM', 'MOS',
+      // Engineering/CSE Buildings
+      'CSB', 'EBU3B', 'EBU1', 'EBU2', 'JWMMC', 'SME', 'MANDE',
+      // Science Buildings
+      'MAYER', 'UREY', 'BONNER', 'NSB', 'PACIF', 'MYR-A',
+      // Arts & Humanities
+      'HSS', 'GALB', 'SEQUO', 'CRAWF',
+      // Medical/Biology
+      'BSB', 'CMME', 'CMMW', 'MTF', 'LSRI',
+      // College Specific
+      'APM', 'RCLAS', 'GAL', 'RWAC', 'COA',
+      // Other Common Buildings
+      'FAH', 'PRICE', 'CPMC', 'DANCE', 'GYM', 'RBC', 'OTRSN', 'ERCA', 'DIB', 'MOGU',
+      // Generic/TBA
+      'TBA', 'REMOTE', 'ONLINE'
+    ];
+    
     return knownBuildings.includes(f) || 
-           (/^[A-Z]{3,6}$/.test(f) && !['LE', 'DI', 'LA', 'FI', 'MI', 'MWF', 'TUTH'].includes(f));
+           (/^[A-Z]{3,6}$/.test(f) && !excludeWords.includes(f));
   }
 
   // NEW: Parse time range helper
@@ -681,7 +734,7 @@ export class ScheduleParser {
     }
     
     console.log('⚠️ Could not parse time range:', timeRange);
-    return { start: '12:00pm', end: '1:00pm' };
+    return { start: '', end: '' };  // Return empty - don't guess times for TBA events
   }
 
   // Emergency fallback - much smaller

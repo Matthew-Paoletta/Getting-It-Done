@@ -52,6 +52,7 @@ export const UCSD_BUILDINGS = [
   { code: 'RCLAS', name: 'Revelle College Classroom Building' },
   { code: 'GAL', name: 'Galbraith Hall' },  
   { code: 'RWAC', name: 'Ridge Walk Academic Complex' },
+  { code: 'COA', name: 'Center for Optimal Algebra' },
   
   // Other Common Buildings
   { code: 'PRICE', name: 'Price Center' },

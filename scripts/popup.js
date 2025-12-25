@@ -43,12 +43,21 @@ const DAY_OPTIONS = [
 
 // ===== CHECK FOR MISSING INFO =====
 // Only prompt for TRULY MISSING values - trust OCR if it read something
+// TBA events (days === 'TBA' with no time) are intentionally TBA and should NOT be flagged for review
 function checkForMissingInfo(events) {
   const eventsNeedingReview = [];
   
   events.forEach((event, index) => {
     const issues = [];
     const isExam = event.sessionType === 'Final Exam' || event.sessionType === 'Midterm';
+    
+    // Check if this is a TBA event (both day and time are TBA/empty)
+    // These are intentionally TBA and should skip manual review - they'll show a TBA warning instead
+    const isTBAEvent = event.days === 'TBA' && (!event.startTime || event.startTime === '');
+    if (isTBAEvent) {
+      console.log(`⏭️ Skipping TBA event from review: ${event.courseCode} ${event.sessionType}`);
+      return; // Skip this event entirely - it's a known TBA, not missing info
+    }
     
     // Check for missing days (for non-exam recurring events)
     // Only flag if completely missing - trust OCR if it read any day value
@@ -267,15 +276,20 @@ function displayMissingInfoReview(events, eventsNeedingReview, quarter, year) {
       }
     });
     
-    // Filter out events still missing critical info
+    // Filter out events still missing critical info (but ALLOW TBA events through - they'll show a warning)
     const validEvents = events.filter(e => {
       const isExam = e.sessionType === 'Final Exam' || e.sessionType === 'Midterm';
-      const hasDays = isExam || (e.days && e.days !== 'MISSING_DAY' && e.days !== 'TBA');
+      const isTBAEvent = e.days === 'TBA' || (!e.startTime && !e.endTime);
+      
+      // TBA events are valid - they'll be shown with a warning in the results
+      if (isTBAEvent) return true;
+      
+      const hasDays = isExam || (e.days && e.days !== 'MISSING_DAY');
       const hasTime = e.startTime && e.endTime;
       return hasDays && hasTime;
     });
     
-    console.log(`📊 ${validEvents.length} events ready after corrections`);
+    console.log(`📊 ${validEvents.length} events ready after corrections (includes TBA events)`);
     
     if (validEvents.length === 0) {
       alert('Please fill in at least the day and time fields to continue.');
@@ -342,6 +356,21 @@ function getICSEventColor(eventType) {
   return colors[eventType] || '#667eea';
 }
 
+// ===== HELPER: Check if event has TBA schedule =====
+function isTBAEvent(event) {
+  const isExam = event.sessionType === 'Final Exam' || event.sessionType === 'Midterm';
+  const days = event.days || '';
+  const hasTBADays = !days || days === 'TBA' || days === 'MISSING_DAY';
+  const hasTBATime = !event.startTime || event.startTime === 'TBA' || !event.endTime || event.endTime === 'TBA';
+  
+  // For exams, check finalDate instead of days
+  if (isExam) {
+    return hasTBATime; // Exams need time, date is separate
+  }
+  
+  return hasTBADays || hasTBATime;
+}
+
 // ===== MAIN DISPLAY FUNCTIONS =====
 export function displayScheduleResults(events, quarter, year) {
   console.log('📊 Displaying results for', events.length, 'events');
@@ -351,6 +380,12 @@ export function displayScheduleResults(events, quarter, year) {
     console.error('❌ Result area not found');
     return;
   }
+  
+  // Separate TBA events from exportable events
+  const exportableEvents = events.filter(e => !isTBAEvent(e));
+  const tbaEvents = events.filter(e => isTBAEvent(e));
+  
+  console.log(`📊 ${exportableEvents.length} exportable, ${tbaEvents.length} TBA events`);
   
   // Group events by course
   const grouped = events.reduce((acc, event) => {
@@ -378,21 +413,38 @@ export function displayScheduleResults(events, quarter, year) {
     const sessions = group.items.map(event => {
       const sessionType = event.getNormalizedSessionType();
       const color = getSessionColor(sessionType);
+      const isTBA = isTBAEvent(event);
+      
+      // TBA notice for events that won't be exported
+      const tbaNotice = isTBA ? `
+        <div class="tba-notice">
+          ⚠️ <strong>Not exported</strong> — Day/time TBA. Check WebReg for updates.
+        </div>` : '';
+      
+      // For exams, show the date (03/16/2026) not the day letter (M)
+      const isExam = sessionType === 'Final Exam' || sessionType === 'Midterm';
+      const displayDate = isExam ? (event.finalDate || 'TBA') : (event.days || event.finalDay || 'TBA');
+      
+      // For time display, show "TBA" if both start and end are missing, otherwise show the range
+      const hasTime = event.startTime && event.endTime;
+      const timeDisplay = hasTime ? `${event.startTime}–${event.endTime}` : 'TBA';
+      
       return `
-        <div class="session-row">
+        <div class="session-row ${isTBA ? 'tba-event' : ''}">
           <span class="type-pill" style="background:${color}22;color:${color};border:1px solid ${color}44;">
             ${sessionType}
           </span>
           <div class="session-info">
             <div class="line-1">
-              <span class="days">${event.days || event.finalDay || ''}</span>
-              <span class="time">${event.startTime || ''}–${event.endTime || ''}</span>
+              <span class="days">${displayDate}</span>
+              <span class="time">${timeDisplay}</span>
             </div>
             <div class="line-2">
               ${event.location ? `<span class="loc">📍 ${event.location}</span>` : ''}
               ${event.sectionCode ? `<span class="sec">Section ${event.sectionCode}</span>` : ''}
               ${event.instructor ? `<span class="inst">👨‍🏫 ${event.instructor}</span>` : ''}
             </div>
+            ${tbaNotice}
           </div>
         </div>`;
     }).join('');
@@ -407,11 +459,18 @@ export function displayScheduleResults(events, quarter, year) {
       </div>`;
   }).join('');
 
+  // TBA warning message if there are TBA events
+  const tbaWarning = tbaEvents.length > 0 ? `
+    <div class="tba-warning">
+      ⚠️ <strong>${tbaEvents.length} event(s)</strong> have TBA times and won't be exported. Check WebReg for updates.
+    </div>` : '';
+
   // Render results
   resultArea.innerHTML = `
     <section class="results-wrap">
       <h2 class="results-title">📅 Schedule Parsed Successfully</h2>
-      <div class="results-subtitle">${stats.totalEvents} event(s) found • ${stats.courseCount} course(s) • ${quarter} ${year}</div>
+      <div class="results-subtitle">${stats.totalEvents} event(s) found • ${exportableEvents.length} exportable • ${quarter} ${year}</div>
+      ${tbaWarning}
       <div class="results-chips">${chips}</div>
       <div class="events-grid">
         ${courseCards || '<div class="empty">No sessions detected in the image.</div>'}
@@ -423,16 +482,19 @@ export function displayScheduleResults(events, quarter, year) {
           <button id="download-ics-btn" class="download-btn">
             📥 Download .ics File
           </button>
+          <!-- Google Calendar direct sync - hidden until app is verified
           <button id="google-calendar-btn" class="download-btn secondary">
             📅 Add to Google Calendar
           </button>
+          -->
         </div>
       </div>
     </section>
   `;
 
   console.log('✅ Results displayed, setting up export buttons...');
-  setupExportButtons(events, quarter, year);
+  // Only pass exportable events to the export buttons (exclude TBA events)
+  setupExportButtons(exportableEvents, quarter, year);
 }
 
 export function displayICSEventsPreview(icsEvents, filename) {
@@ -600,7 +662,9 @@ export function setupExportButtons(events, quarter, year) {
       console.error('❌ Download button not found');
     }
 
-    // Google Calendar Button setup
+    // Google Calendar Button setup - DISABLED until Google verification is complete
+    // Uncomment this section when ready to enable direct Google Calendar sync
+    /*
     const googleBtn = document.getElementById('google-calendar-btn');
     if (googleBtn) {
       console.log('✅ Google Calendar button found');
@@ -663,6 +727,7 @@ export function setupExportButtons(events, quarter, year) {
         }
       };
     }
+    */
     
   }, 100);
   

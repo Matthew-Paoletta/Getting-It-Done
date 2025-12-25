@@ -479,8 +479,9 @@ export class GoogleCalendarAPI {
     return new Promise((resolve, reject) => {
       chrome.identity.getAuthToken({ interactive: true }, (token) => {
         if (chrome.runtime.lastError) {
-          console.error('Authentication failed:', chrome.runtime.lastError);
-          reject(chrome.runtime.lastError);
+          const errorMessage = chrome.runtime.lastError.message || JSON.stringify(chrome.runtime.lastError);
+          console.error('Authentication failed:', errorMessage);
+          reject(new Error(errorMessage));
           return;
         }
         
