@@ -198,9 +198,103 @@ export class ScheduleParser {
       .replace(/\u00A0/g, ' ')          // Replace non-breaking spaces with regular spaces
       .replace(/\r\n/g, '\n')           // Normalize line endings
       .replace(/\r/g, '\n')             // Normalize old Mac line endings
-      // DO NOT replace tabs! We need them for parsing
-      // DO NOT collapse whitespace! We need structure
-      .trim();
+  }
+
+  // NEW: Correct common OCR errors in day strings
+  // E is never a valid day letter, so E → F (common OCR misread)
+  correctOCRDays(dayString) {
+    if (!dayString) return '';
+    let corrected = dayString;
+    // E → F correction (E is never a valid day)
+    corrected = corrected.replace(/E/g, 'F');
+    corrected = corrected.replace(/e/g, 'f');
+    // O → 0 for section codes that might be mixed in
+    // l/I/1/| at end are often OCR artifacts
+    corrected = corrected.replace(/[lI1|]$/g, '');
+    return corrected;
+  }
+
+  // NEW: Normalize day strings to a standard format
+  // Handles: "TU Th" → "TuTh", "MWE" → "MWF", "mwf" → "MWF"
+  normalizeDays(dayString) {
+    if (!dayString) return '';
+    
+    // Step 1: Remove all spaces
+    let normalized = dayString.replace(/\s+/g, '');
+    
+    // Step 2: Apply OCR corrections (E → F)
+    normalized = this.correctOCRDays(normalized);
+    
+    // Step 3: Lowercase for matching
+    const lower = normalized.toLowerCase();
+    
+    // Step 4: Map to standard format
+    const dayMappings = {
+      'm': 'M',
+      'tu': 'Tu',
+      'w': 'W',
+      'th': 'Th',
+      'f': 'F',
+      'sa': 'Sa',
+      'su': 'Su'
+    };
+    
+    // Known combinations (lowercase → proper case)
+    const combinationMappings = {
+      'mwf': 'MWF',
+      'mw': 'MW',
+      'tuth': 'TuTh',
+      'tth': 'TuTh',
+      'wf': 'WF',
+      'mf': 'MF',
+      'mwth': 'MWTh',
+      'twth': 'TuWTh',
+      'mtwthf': 'MTuWThF',
+      'mtuthf': 'MTuThF'
+    };
+    
+    // Check for known combinations first
+    if (combinationMappings[lower]) {
+      return combinationMappings[lower];
+    }
+    
+    // Otherwise, rebuild from individual days
+    let result = '';
+    let i = 0;
+    while (i < lower.length) {
+      // Check two-letter days first (Tu, Th, Sa, Su)
+      if (i + 1 < lower.length) {
+        const twoChar = lower.substring(i, i + 2);
+        if (dayMappings[twoChar]) {
+          result += dayMappings[twoChar];
+          i += 2;
+          continue;
+        }
+      }
+      // Check single-letter days (M, W, F)
+      const oneChar = lower[i];
+      if (dayMappings[oneChar]) {
+        result += dayMappings[oneChar];
+      }
+      i++;
+    }
+    
+    return result || dayString; // Return original if no match
+  }
+
+  // NEW: Split concatenated day+time (e.g., "W8:00a-9:50a" → { day: "W", time: "8:00a-9:50a" })
+  splitDayTime(field) {
+    if (!field) return null;
+    
+    // Pattern: Day letter(s) immediately followed by time
+    const match = field.match(/^(M|Tu|W|Th|F|Sa|Su)(\d{1,2}:\d{2}[ap]m?-\d{1,2}:\d{2}[ap]m?)$/i);
+    if (match) {
+      return {
+        day: this.normalizeDays(match[1]),
+        time: match[2]
+      };
+    }
+    return null;
   }
 
   // COMPLETELY NEW: Direct WebReg table parser for OCR text format
@@ -219,6 +313,7 @@ export class ScheduleParser {
     let currentTitle = '';
     let currentInstructor = '';
     let currentSection = '';  // Track section for inheritance - updated by Discussion/Lab
+    let lastAddedEventIndex = -1;  // Track last event to attach orphan instructors
     
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -230,9 +325,21 @@ export class ScheduleParser {
         continue;
       }
       
-      // Skip orphan instructor lines (just a name with no other data)
+      // Check for orphan instructor lines - CAPTURE them instead of skipping
       if (this.isOrphanInstructorLine(line)) {
-        console.log('  ⏭️ Skipping orphan instructor line');
+        const instructorName = line.trim();
+        // Attach to the current course if it has no instructor
+        if (currentCourse && !currentInstructor) {
+          currentInstructor = instructorName;
+          console.log(`  👨‍🏫 Captured orphan instructor: ${instructorName} for ${currentCourse}`);
+          // Also update the last added event if it has no instructor
+          if (lastAddedEventIndex >= 0 && events[lastAddedEventIndex] && !events[lastAddedEventIndex].instructor) {
+            events[lastAddedEventIndex].instructor = instructorName;
+            console.log(`    → Applied to event at index ${lastAddedEventIndex}`);
+          }
+        } else {
+          console.log(`  ⏭️ Skipping orphan instructor (already have one): ${instructorName}`);
+        }
         continue;
       }
       
@@ -250,6 +357,7 @@ export class ScheduleParser {
           // Start with main section, but will be overwritten by Discussion/Lab section
           currentSection = parsed.event.sectionCode || '';
           events.push(parsed.event);
+          lastAddedEventIndex = events.length - 1;  // Track for orphan instructor attachment
           console.log(`  ✅ Added main course: ${parsed.courseCode} - ${parsed.event.sessionType} (Section: ${currentSection})`);
         }
         continue;
@@ -336,8 +444,14 @@ export class ScheduleParser {
   
   isSectionCodeStart(field) {
     // Match: A00, A01, B00, B01, etc. (also handle OCR errors like BOO -> B00)
-    const cleaned = (field?.trim() || '').replace(/O/g, '0'); // Fix OCR O->0 errors
+    const cleaned = (field?.trim() || '').replace(/O/g, '0').replace(/o/g, '0'); // Fix OCR O->0 errors
     return /^[A-Z][0-9]{2}$/i.test(cleaned);
+  }
+  
+  // Helper to clean section codes (fix OCR errors)
+  cleanSectionCode(code) {
+    if (!code) return '';
+    return code.trim().replace(/O/g, '0').replace(/o/g, '0');
   }
   
   isMidtermLine(line) {
@@ -382,17 +496,25 @@ export class ScheduleParser {
         else if (field.includes(',') && !field.match(/^\d/) && field.length > 3) {
           instructor = field.replace(/:$/, '').trim();
         }
-        // Days (M, Tu, W, Th, F, MWF, TuTh, etc.)
-        else if (this.isDaysPattern(field)) {
-          days = this.cleanDays(field);
+        // Check for concatenated day+time first (e.g., "MWF9:00a-9:50a")
+        else if (this.splitDayTime(field)) {
+          const split = this.splitDayTime(field);
+          days = split.day;
+          timeRange = split.time;
+          console.log(`        Split day+time: ${field} → day=${days}, time=${timeRange}`);
         }
-        // Time range (9:00a-9:50a)
+        // Time range (9:00a-9:50a) - check BEFORE days to avoid confusion
         else if (/\d{1,2}:\d{2}[ap]-?\d{1,2}:\d{2}[ap]/i.test(field)) {
           timeRange = field;
         }
-        // Building code (PETER, CENTR, LEDDN, etc.)
+        // Building code (PETER, CENTR, SME, FAH, etc.) - check BEFORE days!
+        // This prevents building codes like SME/FAH from being misread as days
         else if (this.isBuildingCode(field)) {
           building = field;
+        }
+        // Days (M, Tu, W, Th, F, MWF, TuTh, etc.) - normalize to handle OCR errors like MWE → MWF
+        else if (this.isDaysPattern(field)) {
+          days = this.normalizeDays(field);
         }
         // Room number (108, 101, AUD, 1A18, R24) - exclude action words
         else if (/^[A-Z0-9]{2,5}$/i.test(field) && !['LE', 'DI', 'LA', 'FI', 'MI', 'L', 'P'].includes(field.toUpperCase()) && !actionWords.includes(field.toUpperCase())) {
@@ -455,24 +577,31 @@ export class ScheduleParser {
         else if (/^(LE|DI|LA)$/i.test(field)) {
           sessionType = this.normalizeSessionType(field);
         }
-        // Single day (M, Tu, W, Th, F) - check BEFORE time to catch standalone days
-        else if (/^(M|Tu|W|Th|F|Sa|Su)$/i.test(field)) {
-          days = field;
+        // Check for concatenated day+time first (e.g., "W8:00a-9:50a")
+        else if (this.splitDayTime(field)) {
+          const split = this.splitDayTime(field);
+          days = split.day;
+          timeRange = split.time;
+          console.log(`      Split day+time: ${field} → day=${days}, time=${timeRange}`);
         }
-        // Multi-day pattern (MW, MWF, TuTh) - clean up OCR errors
-        else if (this.isDaysPattern(field)) {
-          days = this.cleanDays(field);
-        }
-        // Time range (2:00p-2:50p)
+        // Time range (2:00p-2:50p) - check BEFORE days to avoid confusion
         else if (/\d{1,2}:\d{2}[ap]-?\d{1,2}:\d{2}[ap]/i.test(field)) {
           timeRange = field;
         }
-        // Building code
+        // Building code - check BEFORE days to prevent SME/FAH being misread as days
         else if (this.isBuildingCode(field)) {
           building = field;
         }
+        // Single day (M, Tu, W, Th, F) - exact match only
+        else if (/^(M|Tu|W|Th|F|Sa|Su)$/i.test(field)) {
+          days = this.normalizeDays(field);
+        }
+        // Multi-day pattern (MW, MWF, TuTh) - normalize to handle OCR errors
+        else if (this.isDaysPattern(field)) {
+          days = this.normalizeDays(field);
+        }
         // Room number (002, 108, AUD, 1A18, R24) - exclude action words
-        else if (/^[A-Z0-9]{2,5}$/i.test(field) && !['LE', 'DI', 'LA', 'FI', 'MI', 'L', 'W', 'M', 'F'].includes(field.toUpperCase()) && !actionWords.includes(field.toUpperCase())) {
+        else if (/^[A-Z0-9]{2,5}$/i.test(field) && !['LE', 'DI', 'LA', 'FI', 'MI', 'L', 'TU', 'TH', 'SA', 'SU'].includes(field.toUpperCase()) && !actionWords.includes(field.toUpperCase())) {
           if (!building) {
             building = field;
           } else if (!room) {
@@ -653,17 +782,41 @@ export class ScheduleParser {
   // ===== HELPER FUNCTIONS =====
   
   isDaysPattern(field) {
-    // Match day patterns, accounting for OCR errors like "F l" -> "F"
-    const cleaned = field?.trim().replace(/\s+[lI1|]$/i, '').trim() || '';
-    return /^(M|Tu|W|Th|F|Sa|Su|MW|MWF|TuTh|TTh)+$/i.test(cleaned);
+    if (!field) return false;
+    const trimmed = field.trim();
+    
+    // FIRST: Reject if it looks like a building code (3+ letters that aren't day patterns)
+    // Building codes like SME, FAH, COA should NOT be treated as days
+    if (this.isBuildingCode(trimmed)) {
+      return false;
+    }
+    
+    // SECOND: Check if the RAW string (before normalization) only contains valid day characters
+    // Valid characters: M, T, W, F, S (and lowercase), u, h, a for Tu, Th, Sa, Su
+    // Remove spaces first for checking
+    const noSpaces = trimmed.replace(/\s+/g, '');
+    
+    // Reject if it contains letters that can't be part of any day
+    // Valid day letters: M, T, W, F, S, u, h, a (for Tu, Th, Sa, Su)
+    // E is allowed because it might be OCR error for F
+    // But reject if it has other letters like B, C, D, G, etc.
+    if (/[BCDGIJKLNOPQRVXYZ]/i.test(noSpaces)) {
+      return false;
+    }
+    
+    // Now normalize and check pattern
+    const normalized = this.normalizeDays(trimmed);
+    if (!normalized) return false;
+    
+    // Check if it matches valid day patterns
+    // Valid single days: M, Tu, W, Th, F, Sa, Su
+    // Valid combinations: MW, MWF, TuTh, etc.
+    return /^(M|Tu|W|Th|F|Sa|Su)+$/i.test(normalized);
   }
   
   cleanDays(field) {
-    // Clean up OCR errors in days field
-    let cleaned = field?.trim() || '';
-    cleaned = cleaned.replace(/\s+[lI1|]$/i, ''); // Remove trailing "l", "I", "1", "|"
-    cleaned = cleaned.replace(/\s+/g, ''); // Remove spaces
-    return cleaned;
+    // Use the comprehensive normalizeDays function
+    return this.normalizeDays(field);
   }
   
   normalizeSessionType(type) {
@@ -683,11 +836,13 @@ export class ScheduleParser {
     // Action column words to EXCLUDE - these should never be treated as buildings
     const excludeWords = [
       'DROP', 'CHANGE', 'ENROLLED', 'WAITLIST', 'STATUS', 'POSITION',
-      'LE', 'DI', 'LA', 'FI', 'MI', 'MWF', 'TUTH', 'ACTION'
+      'LE', 'DI', 'LA', 'FI', 'MI', 'MWF', 'TUTH', 'ACTION',
+      // Single letter days that might be mistaken for building codes
+      'M', 'W', 'F'
     ];
     if (excludeWords.includes(f)) return false;
     
-    // All known UCSD buildings (from schoolConfig.js)
+    // All known UCSD buildings - comprehensive list
     const knownBuildings = [
       // Main Lecture Halls
       'CENTR', 'CENTER', 'LEDDN', 'LEDN', 'YORK', 'PCYNH', 'PETER', 'WLH', 'SOLIS', 'PODEM', 'MOS',
@@ -703,12 +858,22 @@ export class ScheduleParser {
       'APM', 'RCLAS', 'GAL', 'RWAC', 'COA',
       // Other Common Buildings
       'FAH', 'PRICE', 'CPMC', 'DANCE', 'GYM', 'RBC', 'OTRSN', 'ERCA', 'DIB', 'MOGU',
+      // 2-letter building codes (Galbraith Hall, etc.)
+      'GH', 'AP', 'HL', 'MC', 'PH', 'SH',
       // Generic/TBA
       'TBA', 'REMOTE', 'ONLINE'
     ];
     
-    return knownBuildings.includes(f) || 
-           (/^[A-Z]{3,6}$/.test(f) && !excludeWords.includes(f));
+    // Check known buildings first
+    if (knownBuildings.includes(f)) return true;
+    
+    // Allow 2-6 letter uppercase codes as potential buildings (fallback)
+    // But exclude known non-building patterns
+    if (/^[A-Z]{2,6}$/.test(f) && !excludeWords.includes(f)) {
+      return true;
+    }
+    
+    return false;
   }
 
   // NEW: Parse time range helper

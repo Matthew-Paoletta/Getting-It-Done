@@ -21,10 +21,15 @@ for (let hour = 8; hour <= 21; hour++) {
     const suffix = hour >= 12 ? 'p' : 'a';
     const minStr = minute.toString().padStart(2, '0');
     const display = `${h12}:${minStr}${suffix}m`;
-    const value = `${h12}:${minStr}${suffix}`;
+    const value = `${h12}:${minStr}${suffix}m`;
     TIME_OPTIONS.push({ value, display });
   }
 }
+
+// Global state for events (allows editing)
+let currentEvents = [];
+let currentQuarter = '';
+let currentYear = '';
 
 // Day pattern options
 const DAY_OPTIONS = [
@@ -136,15 +141,15 @@ function displayMissingInfoReview(events, eventsNeedingReview, quarter, year) {
       let inputHtml = '';
       
       if (issue.type === 'select') {
-        // Day selection dropdown
-        const options = issue.options.map(opt => 
-          `<option value="${opt.value}">${opt.display}</option>`
+        // Day selection checkboxes (select all that apply)
+        const dayOptions = ['M', 'Tu', 'W', 'Th', 'F', 'Sa', 'Su'];
+        const checkboxes = dayOptions.map(day => 
+          `<label class="day-checkbox"><input type="checkbox" value="${day}" data-field="days"> ${day}</label>`
         ).join('');
         inputHtml = `
-          <select class="review-select" data-field="${issue.field}">
-            <option value="">-- Select --</option>
-            ${options}
-          </select>
+          <div class="day-checkboxes" data-field="days">
+            ${checkboxes}
+          </div>
         `;
       } else if (issue.type === 'time-select') {
         // Time dropdown
@@ -243,10 +248,11 @@ function displayMissingInfoReview(events, eventsNeedingReview, quarter, year) {
       const eventIndex = parseInt(card.dataset.eventIndex);
       const event = events[eventIndex];
       
-      // Get day selection
-      const daySelect = card.querySelector('[data-field="days"]');
-      if (daySelect?.value) {
-        event.days = daySelect.value;
+      // Get day selection from checkboxes
+      const dayCheckboxes = card.querySelectorAll('.day-checkboxes input[type="checkbox"]:checked');
+      if (dayCheckboxes.length > 0) {
+        const selectedDays = Array.from(dayCheckboxes).map(cb => cb.value).join('');
+        event.days = selectedDays;
         console.log(`✅ Set ${event.courseCode} days to: ${event.days}`);
       }
       
@@ -345,6 +351,28 @@ function getSessionColor(type) {
   return map[type] || '#667eea';
 }
 
+// Build event details line with consistent formatting
+function buildEventDetails(event) {
+  const details = [];
+  
+  if (event.location && event.location !== 'TBA') {
+    details.push(`📍 ${event.location}`);
+  }
+  
+  if (event.sectionCode) {
+    details.push(`Section ${event.sectionCode}`);
+  }
+  
+  if (event.instructor) {
+    details.push(`👨‍🏫 ${event.instructor}`);
+  }
+  
+  // Join with bullet separator for clean, consistent spacing
+  return details.length > 0 
+    ? `<span class="event-details">${details.join(' • ')}</span>`
+    : '';
+}
+
 function getICSEventColor(eventType) {
   const colors = {
     'Lecture': '#3366ff',
@@ -375,6 +403,11 @@ function isTBAEvent(event) {
 export function displayScheduleResults(events, quarter, year) {
   console.log('📊 Displaying results for', events.length, 'events');
   
+  // Store events globally for editing
+  currentEvents = events;
+  currentQuarter = quarter;
+  currentYear = year;
+  
   const resultArea = document.getElementById('result-area');
   if (!resultArea) {
     console.error('❌ Result area not found');
@@ -388,7 +421,7 @@ export function displayScheduleResults(events, quarter, year) {
   console.log(`📊 ${exportableEvents.length} exportable, ${tbaEvents.length} TBA events`);
   
   // Group events by course
-  const grouped = events.reduce((acc, event) => {
+  const grouped = events.reduce((acc, event, globalIndex) => {
     const key = event.courseCode || 'Unknown Course';
     if (!acc[key]) {
       acc[key] = {
@@ -396,7 +429,8 @@ export function displayScheduleResults(events, quarter, year) {
         items: []
       };
     }
-    acc[key].items.push(event);
+    // Store the global index with each event for editing
+    acc[key].items.push({ event, globalIndex });
     return acc;
   }, {});
 
@@ -410,7 +444,7 @@ export function displayScheduleResults(events, quarter, year) {
 
   // Create course cards
   const courseCards = Object.entries(grouped).map(([courseCode, group]) => {
-    const sessions = group.items.map(event => {
+    const sessions = group.items.map(({ event, globalIndex }) => {
       const sessionType = event.getNormalizedSessionType();
       const color = getSessionColor(sessionType);
       const isTBA = isTBAEvent(event);
@@ -430,7 +464,7 @@ export function displayScheduleResults(events, quarter, year) {
       const timeDisplay = hasTime ? `${event.startTime}–${event.endTime}` : 'TBA';
       
       return `
-        <div class="session-row ${isTBA ? 'tba-event' : ''}">
+        <div class="session-row ${isTBA ? 'tba-event' : ''}" data-event-index="${globalIndex}">
           <span class="type-pill" style="background:${color}22;color:${color};border:1px solid ${color}44;">
             ${sessionType}
           </span>
@@ -440,11 +474,13 @@ export function displayScheduleResults(events, quarter, year) {
               <span class="time">${timeDisplay}</span>
             </div>
             <div class="line-2">
-              ${event.location ? `<span class="loc">📍 ${event.location}</span>` : ''}
-              ${event.sectionCode ? `<span class="sec">Section ${event.sectionCode}</span>` : ''}
-              ${event.instructor ? `<span class="inst">👨‍🏫 ${event.instructor}</span>` : ''}
+              ${buildEventDetails(event)}
             </div>
             ${tbaNotice}
+          </div>
+          <div class="event-actions">
+            <button class="event-action-btn edit-btn" data-index="${globalIndex}" title="Edit">✏️</button>
+            <button class="event-action-btn delete-btn" data-index="${globalIndex}" title="Delete">🗑️</button>
           </div>
         </div>`;
     }).join('');
@@ -492,7 +528,11 @@ export function displayScheduleResults(events, quarter, year) {
     </section>
   `;
 
-  console.log('✅ Results displayed, setting up export buttons...');
+  console.log('✅ Results displayed, setting up buttons...');
+  
+  // Setup edit/delete buttons
+  setupEventActionButtons();
+  
   // Only pass exportable events to the export buttons (exclude TBA events)
   setupExportButtons(exportableEvents, quarter, year);
 }
@@ -585,6 +625,231 @@ export function displayError(error) {
 }
 
 // ===== BUTTON SETUP FUNCTIONS =====
+
+// Setup edit and delete buttons on each event card
+function setupEventActionButtons() {
+  // Edit buttons
+  document.querySelectorAll('.edit-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const index = parseInt(btn.dataset.index);
+      openEditModal(index);
+    });
+  });
+  
+  // Delete buttons
+  document.querySelectorAll('.delete-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const index = parseInt(btn.dataset.index);
+      deleteEvent(index);
+    });
+  });
+  
+  console.log('✅ Event action buttons setup complete');
+}
+
+// Open the edit modal with event data
+function openEditModal(index) {
+  const event = currentEvents[index];
+  if (!event) {
+    console.error('❌ Event not found at index:', index);
+    return;
+  }
+  
+  console.log('✏️ Opening edit modal for event:', event.courseCode, event.sessionType);
+  
+  const modal = document.getElementById('edit-modal');
+  
+  // Populate form fields
+  document.getElementById('edit-event-index').value = index;
+  document.getElementById('edit-course-code').value = event.courseCode || '';
+  document.getElementById('edit-session-type').value = event.sessionType || 'Lecture';
+  
+  // Populate day checkboxes
+  const days = event.days || '';
+  document.querySelectorAll('#edit-days-checkboxes input[type="checkbox"]').forEach(cb => {
+    cb.checked = days.includes(cb.value);
+  });
+  
+  // Populate time dropdowns
+  populateTimeDropdown('edit-start-time', event.startTime);
+  populateTimeDropdown('edit-end-time', event.endTime);
+  
+  // Populate location
+  document.getElementById('edit-building').value = event.building || '';
+  document.getElementById('edit-room').value = event.room || '';
+  
+  // Populate instructor
+  document.getElementById('edit-instructor').value = event.instructor || '';
+  
+  // Show/hide exam date field
+  const examDateGroup = document.getElementById('exam-date-group');
+  const isExam = event.sessionType === 'Final Exam' || event.sessionType === 'Midterm';
+  examDateGroup.style.display = isExam ? 'block' : 'none';
+  
+  if (isExam && event.finalDate) {
+    // Convert MM/DD/YYYY to YYYY-MM-DD for date input
+    const dateParts = event.finalDate.split('/');
+    if (dateParts.length === 3) {
+      const isoDate = `${dateParts[2]}-${dateParts[0].padStart(2, '0')}-${dateParts[1].padStart(2, '0')}`;
+      document.getElementById('edit-exam-date').value = isoDate;
+    }
+  }
+  
+  // Show modal
+  modal.style.display = 'flex';
+  
+  // Setup modal event listeners
+  setupModalListeners();
+}
+
+// Populate time dropdown with options
+function populateTimeDropdown(selectId, currentValue) {
+  const select = document.getElementById(selectId);
+  if (!select) return;
+  
+  // Normalize current value for comparison
+  let normalizedCurrent = '';
+  if (currentValue) {
+    // Handle formats like "8:00am", "8:00a", "8:00am"
+    normalizedCurrent = currentValue.toLowerCase().replace(/m$/, '') + 'm';
+  }
+  
+  select.innerHTML = '<option value="">-- Select --</option>' +
+    TIME_OPTIONS.map(opt => {
+      const optNormalized = opt.value.toLowerCase();
+      const selected = normalizedCurrent && optNormalized.includes(normalizedCurrent.replace('m', '')) ? 'selected' : '';
+      return `<option value="${opt.value}" ${selected}>${opt.display}</option>`;
+    }).join('');
+}
+
+// Setup modal button listeners
+function setupModalListeners() {
+  const modal = document.getElementById('edit-modal');
+  
+  // Close button
+  document.getElementById('modal-close-btn').onclick = () => {
+    modal.style.display = 'none';
+  };
+  
+  // Cancel button
+  document.getElementById('modal-cancel-btn').onclick = () => {
+    modal.style.display = 'none';
+  };
+  
+  // Save button
+  document.getElementById('modal-save-btn').onclick = () => {
+    saveEventChanges();
+  };
+  
+  // Delete button
+  document.getElementById('modal-delete-btn').onclick = () => {
+    const index = parseInt(document.getElementById('edit-event-index').value);
+    modal.style.display = 'none';
+    deleteEvent(index);
+  };
+  
+  // Session type change - show/hide exam date
+  document.getElementById('edit-session-type').onchange = (e) => {
+    const isExam = e.target.value === 'Final Exam' || e.target.value === 'Midterm';
+    document.getElementById('exam-date-group').style.display = isExam ? 'block' : 'none';
+  };
+  
+  // Click outside to close
+  modal.onclick = (e) => {
+    if (e.target === modal) {
+      modal.style.display = 'none';
+    }
+  };
+}
+
+// Save changes from the edit modal
+function saveEventChanges() {
+  const index = parseInt(document.getElementById('edit-event-index').value);
+  const event = currentEvents[index];
+  
+  if (!event) {
+    console.error('❌ Event not found');
+    return;
+  }
+  
+  // Get selected days from checkboxes
+  const selectedDays = Array.from(
+    document.querySelectorAll('#edit-days-checkboxes input[type="checkbox"]:checked')
+  ).map(cb => cb.value).join('');
+  
+  // Update event
+  event.sessionType = document.getElementById('edit-session-type').value;
+  event.days = selectedDays || 'TBA';
+  event.startTime = document.getElementById('edit-start-time').value || '';
+  event.endTime = document.getElementById('edit-end-time').value || '';
+  event.building = document.getElementById('edit-building').value || '';
+  event.room = document.getElementById('edit-room').value || '';
+  event.location = event.building && event.room 
+    ? `${event.building} ${event.room}` 
+    : event.building || event.room || 'TBA';
+  
+  // Save instructor
+  event.instructor = document.getElementById('edit-instructor').value || '';
+  
+  // Handle exam date
+  const examDate = document.getElementById('edit-exam-date').value;
+  if (examDate && (event.sessionType === 'Final Exam' || event.sessionType === 'Midterm')) {
+    // Convert YYYY-MM-DD to MM/DD/YYYY
+    const [year, month, day] = examDate.split('-');
+    event.finalDate = `${month}/${day}/${year}`;
+  }
+  
+  console.log('✅ Saved changes to event:', event.courseCode, event.sessionType);
+  
+  // Close modal
+  document.getElementById('edit-modal').style.display = 'none';
+  
+  // Re-render results
+  displayScheduleResults(currentEvents, currentQuarter, currentYear);
+}
+
+// Delete an event
+function deleteEvent(index) {
+  const event = currentEvents[index];
+  
+  if (!event) {
+    console.error('❌ Event not found at index:', index);
+    return;
+  }
+  
+  const confirmDelete = confirm(
+    `Delete "${event.courseCode} - ${event.sessionType}"?\n\nThis cannot be undone.`
+  );
+  
+  if (!confirmDelete) return;
+  
+  console.log('🗑️ Deleting event:', event.courseCode, event.sessionType);
+  
+  // Remove event from array
+  currentEvents.splice(index, 1);
+  
+  // Re-render results
+  if (currentEvents.length > 0) {
+    displayScheduleResults(currentEvents, currentQuarter, currentYear);
+  } else {
+    // No events left
+    const resultArea = document.getElementById('result-area');
+    if (resultArea) {
+      resultArea.innerHTML = `
+        <div class="results-wrap">
+          <h2 style="color: var(--text-light);">📭 No Events</h2>
+          <p>All events have been deleted. Upload or paste a new schedule to start over.</p>
+          <button onclick="location.reload()" class="btn primary" style="margin-top: 16px;">
+            🔄 Start Over
+          </button>
+        </div>
+      `;
+    }
+  }
+}
+
 export function setupExportButtons(events, quarter, year) {
   console.log('🔧 Setting up export buttons for', events.length, 'events');
   

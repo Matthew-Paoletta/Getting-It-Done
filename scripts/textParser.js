@@ -10,6 +10,102 @@ export class TextParser {
     console.log('📝 TextParser initialized');
   }
 
+  // NEW: Correct common OCR errors in day strings
+  // E is never a valid day letter, so E → F (common OCR misread)
+  correctOCRDays(dayString) {
+    if (!dayString) return '';
+    let corrected = dayString;
+    // E → F correction (E is never a valid day)
+    corrected = corrected.replace(/E/g, 'F');
+    corrected = corrected.replace(/e/g, 'f');
+    // l/I/1/| at end are often OCR artifacts
+    corrected = corrected.replace(/[lI1|]$/g, '');
+    return corrected;
+  }
+
+  // NEW: Normalize day strings to a standard format
+  // Handles: "TU Th" → "TuTh", "MWE" → "MWF", "mwf" → "MWF"
+  normalizeDays(dayString) {
+    if (!dayString) return '';
+    
+    // Step 1: Remove all spaces
+    let normalized = dayString.replace(/\s+/g, '');
+    
+    // Step 2: Apply OCR corrections (E → F)
+    normalized = this.correctOCRDays(normalized);
+    
+    // Step 3: Lowercase for matching
+    const lower = normalized.toLowerCase();
+    
+    // Step 4: Map to standard format
+    const dayMappings = {
+      'm': 'M',
+      'tu': 'Tu',
+      'w': 'W',
+      'th': 'Th',
+      'f': 'F',
+      'sa': 'Sa',
+      'su': 'Su'
+    };
+    
+    // Known combinations (lowercase → proper case)
+    const combinationMappings = {
+      'mwf': 'MWF',
+      'mw': 'MW',
+      'tuth': 'TuTh',
+      'tth': 'TuTh',
+      'wf': 'WF',
+      'mf': 'MF',
+      'mwth': 'MWTh',
+      'twth': 'TuWTh',
+      'mtwthf': 'MTuWThF',
+      'mtuthf': 'MTuThF'
+    };
+    
+    // Check for known combinations first
+    if (combinationMappings[lower]) {
+      return combinationMappings[lower];
+    }
+    
+    // Otherwise, rebuild from individual days
+    let result = '';
+    let i = 0;
+    while (i < lower.length) {
+      // Check two-letter days first (Tu, Th, Sa, Su)
+      if (i + 1 < lower.length) {
+        const twoChar = lower.substring(i, i + 2);
+        if (dayMappings[twoChar]) {
+          result += dayMappings[twoChar];
+          i += 2;
+          continue;
+        }
+      }
+      // Check single-letter days (M, W, F)
+      const oneChar = lower[i];
+      if (dayMappings[oneChar]) {
+        result += dayMappings[oneChar];
+      }
+      i++;
+    }
+    
+    return result || dayString; // Return original if no match
+  }
+
+  // NEW: Split concatenated day+time (e.g., "W8:00a-9:50a" → { day: "W", time: "8:00a-9:50a" })
+  splitDayTime(field) {
+    if (!field) return null;
+    
+    // Pattern: Day letter(s) immediately followed by time
+    const match = field.match(/^(M|Tu|W|Th|F|Sa|Su)(\d{1,2}:\d{2}[ap]m?-\d{1,2}:\d{2}[ap]m?)$/i);
+    if (match) {
+      return {
+        day: this.normalizeDays(match[1]),
+        time: match[2]
+      };
+    }
+    return null;
+  }
+
   /**
    * Main parsing function - takes raw pasted text and returns CourseEvents
    */
@@ -197,14 +293,23 @@ export class TextParser {
           console.log(`        → Session type: ${sessionType}`);
         } else if (/,/.test(field) && field.length > 3 && !field.match(/^\d/)) {
           // Likely instructor name (Last, First format)
-          instructor = field;
+          instructor = field.replace(/:$/, '').trim(); // Remove trailing colon from OCR
           console.log(`        → Instructor`);
-        } else if (this.isDaysField(field)) {
-          days = field;
-          console.log(`        → Days`);
+        } else if (this.splitDayTime(field)) {
+          // Handle concatenated day+time (e.g., "MWF9:00a-9:50a")
+          const split = this.splitDayTime(field);
+          days = split.day;
+          timeRange = split.time;
+          console.log(`        → Split day+time: day=${days}, time=${timeRange}`);
         } else if (this.isTimeRange(field)) {
           timeRange = field;
           console.log(`        → Time range`);
+        } else if (this.isBuildingCode(field)) {
+          building = field;
+          console.log(`        → Building`);
+        } else if (this.isDaysField(field)) {
+          days = this.normalizeDays(field);
+          console.log(`        → Days (normalized: ${days})`);
         } else if (this.isBuildingCode(field)) {
           building = field;
           console.log(`        → Building`);
@@ -270,12 +375,18 @@ export class TextParser {
           sectionCode = field;
         } else if (/^(LE|DI|LA|FI|MI)$/i.test(field)) {
           sessionType = this.normalizeSessionType(field);
-        } else if (this.isDaysField(field)) {
-          days = field;
+        } else if (this.splitDayTime(field)) {
+          // Handle concatenated day+time (e.g., "W8:00p-8:50p")
+          const split = this.splitDayTime(field);
+          days = split.day;
+          timeRange = split.time;
+          console.log(`      Split day+time: ${field} → day=${days}, time=${timeRange}`);
         } else if (this.isTimeRange(field)) {
           timeRange = field;
         } else if (this.isBuildingCode(field)) {
           building = field;
+        } else if (this.isDaysField(field)) {
+          days = this.normalizeDays(field);
         } else if (/^\d{3,4}[A-Z]?$/.test(field)) {
           room = field;
         }
@@ -455,10 +566,28 @@ export class TextParser {
 
   /**
    * Check if field looks like days (M, Tu, W, Th, F, MWF, TuTh, etc.)
+   * Now handles OCR errors and spacing issues, but rejects building codes
    */
   isDaysField(field) {
-    // Match single days or combinations
-    return /^(M|Tu|W|Th|F|Sa|Su)+$/i.test(field?.trim() || '');
+    if (!field) return false;
+    const trimmed = field.trim();
+    
+    // FIRST: Reject if it looks like a building code
+    if (this.isBuildingCode(trimmed)) {
+      return false;
+    }
+    
+    // SECOND: Check if string only contains valid day characters
+    // Valid: M, T, W, F, S, u, h, a, E (OCR error for F)
+    // Reject if it has other letters like B, C, D, G, etc.
+    const noSpaces = trimmed.replace(/\s+/g, '');
+    if (/[BCDGIJKLNOPQRVXYZ]/i.test(noSpaces)) {
+      return false;
+    }
+    
+    const normalized = this.normalizeDays(trimmed);
+    // Match single days or combinations after normalization
+    return /^(M|Tu|W|Th|F|Sa|Su)+$/i.test(normalized);
   }
 
   /**
@@ -470,12 +599,49 @@ export class TextParser {
 
   /**
    * Check if field is a building code (common UCSD buildings)
+   * Expanded list with 2-letter codes and fallback pattern
    */
   isBuildingCode(field) {
     const f = field?.trim().toUpperCase() || '';
-    // Common UCSD building codes
-    const buildings = ['PETER', 'CENTR', 'WLH', 'YORK', 'SOLIS', 'LEDDN', 'APM', 'HSS', 'CSB', 'EBU3B', 'PCYNH', 'MANDE', 'FAH', 'RWAC', 'MOGU', 'DIB', 'MOS'];
-    return buildings.includes(f) || (/^[A-Z]{2,6}$/.test(f) && !['L', 'P', 'NP', 'LE', 'DI', 'LA', 'FI', 'MI', 'TBA'].includes(f));
+    
+    // Words to exclude - never treat these as buildings
+    const excludeWords = [
+      'DROP', 'CHANGE', 'ENROLLED', 'WAITLIST', 'STATUS', 'POSITION',
+      'LE', 'DI', 'LA', 'FI', 'MI', 'MWF', 'TUTH', 'ACTION',
+      'L', 'P', 'NP', 'TBA', 'M', 'W', 'F'
+    ];
+    if (excludeWords.includes(f)) return false;
+    
+    // Comprehensive UCSD building codes
+    const buildings = [
+      // Main buildings
+      'PETER', 'CENTR', 'CENTER', 'WLH', 'YORK', 'SOLIS', 'LEDDN', 'LEDN', 'APM', 'HSS', 'CSB',
+      'EBU3B', 'EBU1', 'EBU2', 'PCYNH', 'MANDE', 'FAH', 'RWAC', 'MOGU', 'DIB', 'MOS',
+      // Engineering/Science
+      'SME', 'JWMMC', 'MAYER', 'UREY', 'BONNER', 'NSB', 'PACIF', 'MYR-A',
+      // Arts & Humanities
+      'GALB', 'SEQUO', 'CRAWF',
+      // Medical/Biology
+      'BSB', 'CMME', 'CMMW', 'MTF', 'LSRI',
+      // College Specific
+      'RCLAS', 'GAL', 'COA',
+      // Other buildings
+      'PRICE', 'CPMC', 'DANCE', 'GYM', 'RBC', 'OTRSN', 'ERCA', 'PODEM',
+      // 2-letter building codes
+      'GH', 'AP', 'HL', 'MC', 'PH', 'SH',
+      // Remote/Online
+      'REMOTE', 'ONLINE'
+    ];
+    
+    // Check known buildings first
+    if (buildings.includes(f)) return true;
+    
+    // Fallback: 2-6 uppercase letters that aren't excluded
+    if (/^[A-Z]{2,6}$/.test(f) && !excludeWords.includes(f)) {
+      return true;
+    }
+    
+    return false;
   }
 
   /**

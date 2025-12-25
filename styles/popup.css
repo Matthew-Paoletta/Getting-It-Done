@@ -360,6 +360,11 @@ h2 {
   color: var(--text-light);
 }
 
+.event-details {
+  display: inline-block;
+  letter-spacing: 0.2px;
+}
+
 .days {
   margin-right: 10px;
   font-weight: 600;
@@ -1209,4 +1214,200 @@ footer {
 
 .review-actions .btn.secondary:hover {
   background: #e8e8e8;
+}
+
+/* ===== EDIT EVENT MODAL ===== */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 420px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: #f8f9fa;
+  border-radius: 12px 12px 0 0;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--text);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: var(--text-light);
+  padding: 0;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  color: var(--error);
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.form-input[readonly] {
+  background: #f5f5f5;
+  color: var(--text-light);
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.form-col {
+  flex: 1;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 10px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+  background: #f8f9fa;
+  border-radius: 0 0 12px 12px;
+}
+
+.modal-footer .btn {
+  padding: 10px 16px;
+  font-size: 13px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: none;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.modal-footer .btn.primary {
+  background: var(--primary);
+  color: white;
+  margin-left: auto;
+}
+
+.modal-footer .btn.primary:hover {
+  background: var(--primary-hover);
+}
+
+.modal-footer .btn.secondary {
+  background: #e0e0e0;
+  color: var(--text);
+}
+
+.modal-footer .btn.secondary:hover {
+  background: #d0d0d0;
+}
+
+.modal-footer .btn.danger {
+  background: #ffebee;
+  color: #c62828;
+  border: 1px solid #ef9a9a;
+}
+
+.modal-footer .btn.danger:hover {
+  background: #ffcdd2;
+}
+
+/* Edit/Delete buttons on event cards */
+.event-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.event-action-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.event-action-btn:hover {
+  background: #f0f0f0;
+}
+
+.event-action-btn.edit-btn:hover {
+  background: #e3f2fd;
+  border-color: #90caf9;
+  color: #1976d2;
+}
+
+.event-action-btn.delete-btn:hover {
+  background: #ffebee;
+  border-color: #ef9a9a;
+  color: #c62828;
 }
