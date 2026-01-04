@@ -10,9 +10,6 @@ This Chrome Extension is designed primarily for UC San Diego (Triton) students. 
 - Export schedule for use with Google Calendar, Outlook, and other calendar applications.
 - Built with JavaScript, CSS, and HTML for a responsive and efficient user experience.
 
-## Installation
-(To be completed - Provide a step-by-step guide for installing the extension once it's published.)
-
 ## Extension Link
 (Link to Chrome Web Store or extension will go here.)
 
