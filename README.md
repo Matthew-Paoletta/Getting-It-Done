@@ -1,20 +1,20 @@
-# 🚀 WebReg2Cal
+# WebReg2Cal
 
-## Overview
-**WebReg2Cal** is a practical Web Application designed to convert screenshots or text from your WebReg into `.ics` files that you can seamlessly add to your personal calendars.
+WebReg2Cal will be a software that organizes all your tasks for your classes and creates calendar events on your Google Calendar automatically.
 
-This project combines the power of the Google Calendar API with JavaScript-based automation to bring a new level of convenience to your schedule management. It was born from a desire to create something practical, not just theoretical.
+## About
+This Chrome Extension is designed primarily for UC San Diego (Triton) students. It takes a screenshot from WebReg and converts it into an ICS file that can be imported into any personal calendar application. Simplify managing your course schedule and plan your time effectively!
+
 ## Features
-- **Screenshot to Calendar**: Turn screenshots or text from WebReg into `.ics` files instantly.
-- **Google Calendar Integration**: Save `.ics` files directly to your Google Calendar.
-- **JavaScript Automation**: Simplifies the creation and management of calendar events.
+- Convert WebReg screenshots into ICS files.
+- Export schedule for use with Google Calendar, Outlook, and other calendar applications.
+- Built with JavaScript, CSS, and HTML for a responsive and efficient user experience.
 
-## Why I Built This
-Projects like *WebReg2Cal* remind me why I enjoy building software. It’s a rewarding journey to take an idea and bring it to life as a product that solves a real-world problem.
+## Extension Link
+(Link to Chrome Web Store or extension will go here.)
 
-## Future Plans
-In the near future this applicaiton will have loads of new functions that will help college students keeping their school-realted tasks organized.
+## Contributing
+Contributions are welcome! If you have suggestions or encounter issues, feel free to submit an issue or pull request.
 
----
-
-Thank you for checking out *WebReg2Cal*! 📅
+## License
+This project is licensed under the MIT License.
