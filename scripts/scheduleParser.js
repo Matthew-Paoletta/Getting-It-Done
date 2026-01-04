@@ -79,7 +79,7 @@ export class CourseEvent {
     }
     
     lines.push('');  // Empty line before footer
-    lines.push('📚 Created by Getting It Done');
+    lines.push('📚 Created by WebReg2Cal');
     
     // Join with actual newline characters (will be escaped later)
     return lines.join('\n');

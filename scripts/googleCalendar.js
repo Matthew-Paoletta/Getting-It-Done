@@ -28,7 +28,7 @@ export class GoogleCalendarAPI {
       let icsContent = [
         'BEGIN:VCALENDAR',
         'VERSION:2.0',
-        'PRODID:-//Getting It Done//UCSD Schedule//EN',
+        'PRODID:-//WebReg2Cal//UCSD Schedule//EN',
         'CALSCALE:GREGORIAN',
         'METHOD:PUBLISH',
         `X-WR-CALNAME:UCSD ${quarter} ${year} Schedule`,
@@ -645,7 +645,7 @@ export class GoogleCalendarAPI {
       description += `Location: ${location}\n`;
     }
     
-    description += `\n📚 Created by Getting It Done Extension`;
+    description += `\n📚 Created by WebReg2Cal Extension`;
     
     return description;
   }
