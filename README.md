@@ -19,21 +19,21 @@ This repository contains the software for `WebReg2Cal`, a tool that automaticall
 Get the WebReg2Cal extension now on the [Chrome Web Store](https://chromewebstore.google.com/detail/webreg2cal/lpokllkbcdgioagipllhfcpjmdnjjdci).
 
 ### Screenshot of the Chrome Web Store Page
-![image5](assets/readme_images/image5)
+![image5](assets/readme_images/image5.png)
 
 ## Screenshots
 
 ### Step-by-Step Input
-![image1](assets/readme_images/image1)
+![image1](assets/readme_images/image1.png)
 
 ### Exporting Your Schedule
-![image2](assets/readme_images/image2)
+![image2](assets/readme_images/image2.png)
 
 ### Successful Schedule Parsing
-![image3](assets/readme_images/image3)
+![image3](assets/readme_images/image3.png)
 
 ### OCR Assistance
-![image4](assets/readme_images/image4)
+![image4](assets/readme_images/image4.png)
 
 ## Usage
 
