@@ -24,6 +24,50 @@ Here are some metrics as of January 16, 2026:
 ![installations](assets/readme_images/installations.png)
 
 ### Screenshot of the Chrome Web Store Page
+<div align="center">
+    <img src="assets/readme_images/image5.png" alt="Chrome Web Store Page" width="80%">
+</div>
+
+## Screenshots
+
+<div align="center">
+    <table>
+        <tr>
+            <td><img src="assets/readme_images/image1.png" alt="Step-by-Step Input" width="400"></td>
+            <td><img src="assets/readme_images/image2.png" alt="Exporting Your Schedule" width="400"></td>
+        </tr>
+        <tr>
+            <td><img src="assets/readme_images/image3.png" alt="Successful Schedule Parsing" width="400"></td>
+            <td><img src="assets/readme_images/image4.png" alt="OCR Assistance" width="400"></td>
+        </tr>
+    </table>
+</div>
+
+## Usage
+
+### How to Use
+1. Select the quarter you want to export.
+2. Upload your schedule screenshot or paste schedule text.
+3. Verify detected events and fix any OCR mismatches.
+4. Export your schedule into `.ics` format.
+
+### Example Screens
+- **Select Quarter:** Choose the quarter and upload inputs.
+- **Export Schedule:** Download your calendar events.
+- **OCR Accuracy:** Fine-tune your schedule details.
+
+## Up-to-Date Metrics
+To showcase metrics for your Chrome extension:
+1. **Number of Installs:** Use the Chrome Web Store insights.
+2. **Weekly Active Users:** Track engagement metrics.
+3. **Feedback Ratings:** Highlight reviews or star ratings.
+4. **Updated Features:** Maintain a log of improvements in the **Changelog** section.
+
+## Contributions
+We welcome contributions! Feel free to submit issues or open pull requests.
+
+## Made with ❤️ at UCSD
+### Screenshot of the Chrome Web Store Page
 ![image5](assets/readme_images/image5.png)
 
 ## Screenshots
