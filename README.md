@@ -34,7 +34,7 @@ Here are some metrics as of January 16, 2026:
     <table>
         <tr>
             <td><img src="assets/readme_images/image1.png" alt="Step-by-Step Input" width="400"></td>
-            <td><img src="assets/readme_images/image2.png" alt="Exporting Your Schedule" width="400"></td>
+            <td><img src="assets/readme_images/image2(1).png" alt="Exporting Your Schedule" width="400"></td>
         </tr>
         <tr>
             <td><img src="assets/readme_images/image3.png" alt="Successful Schedule Parsing" width="400"></td>
