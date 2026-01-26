@@ -1014,8 +1014,8 @@ function setupInputMethodToggle() {
 
   console.log('✅ Found toggle buttons, setting up listeners...');
 
-  // Text method is now default - hide process step initially
-  processStep.style.display = 'none';
+  // Keep the process step visible at all times; the Analyze button
+  // will be shown only when an image is selected/uploaded.
 
   imageMethodBtn.addEventListener('click', () => {
     console.log('📷 Image method clicked');
@@ -1023,7 +1023,6 @@ function setupInputMethodToggle() {
     textMethodBtn.classList.remove('active');
     imageSection.style.display = 'block';
     textSection.style.display = 'none';
-    processStep.style.display = 'flex';
   });
 
   textMethodBtn.addEventListener('click', () => {
@@ -1032,7 +1031,6 @@ function setupInputMethodToggle() {
     imageMethodBtn.classList.remove('active');
     textSection.style.display = 'block';
     imageSection.style.display = 'none';
-    processStep.style.display = 'none';
   });
 
   console.log('✅ Input method toggle setup complete');
