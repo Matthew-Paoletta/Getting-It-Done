@@ -10,7 +10,7 @@ console.log('🚀 ImageProcess.js loaded');
 // ===== EMBEDDED IMAGE PROCESSOR CLASS =====
 class ImageProcessor {
   constructor() {
-    this.apiKey = 'helloworld'; // Default free tier key
+    this.apiKey = 'K83779876888957'; // Default free tier key
     this.statusCallback = null;
   }
 

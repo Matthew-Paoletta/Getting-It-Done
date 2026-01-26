@@ -48,74 +48,74 @@
         <h2>Choose Input Method</h2>
         <p>Upload a screenshot or paste text from WebReg</p>
         
-        <div class="input-method-toggle">
-          <button id="method-text" class="method-btn active">
-            📋 Paste Text
-          </button>
-          <button id="method-image" class="method-btn">
-            📷 Screenshot
-          </button>
-        </div>
-
-        <!-- Text Paste Section (NOW FIRST AND VISIBLE BY DEFAULT) -->
-        <div id="text-input-section" class="input-section">
-          <div class="instructions-box">
-            <h3>📋 How to copy your schedule:</h3>
-            <ol>
-              <li>Go to <a href="https://act.ucsd.edu/webreg2" target="_blank">WebReg</a></li>
-              <li>Select the correct quarter and click "Go" to load your schedule</li>
-              <li>Click the "List" tab to view your schedule as a table</li>
-              <li>Select all the text in your schedule table (Ctrl+A or Cmd+A)</li>
-              <li>Copy the selected text (Ctrl+C or Cmd+C)</li>
-              <li>Paste it in the box below (Ctrl+V or Cmd+V)</li>
-            </ol>
-          </div>
-          
-          <div class="text-paste-area">
-            <textarea 
-              id="schedule-text" 
-              placeholder="Paste your WebReg schedule text here...
-
-Example format:
-CSE 100	Advanced Data Structures	A00	LE	Sahoo	MWF	9:00a-9:50a	PETER	108
-    A01	DI	W	8:00p-8:50p	PETER	108
-    Midterm	MI	Sa 02/07/2026	3:00p-4:50p	PETER	108
-    Final Exam	FI	W 03/18/2026	8:00a-10:59a	PETER	108"
-              rows="10"></textarea>
-            <div id="text-char-count" class="char-count">0 characters</div>
-          </div>
-          
-          <button id="parse-text-btn" class="btn primary" disabled>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-            Parse Schedule Text
-          </button>
-        </div>
-
-        <!-- Image Upload Section (NOW SECOND AND HIDDEN BY DEFAULT) -->
-        <div id="image-input-section" class="input-section" style="display: none;">
-          <div class="instructions-box">
-            <h3>📸 How to take the screenshot:</h3>
-            <ol>
-              <li>Go to <a href="https://act.ucsd.edu/webreg2" target="_blank">WebReg</a></li>
-              <li>Select the correct quarter and click "Go" to load your schedule</li>
-              <li>Click the "List" tab to view your schedule as a table</li>
-              <li>Scroll to see your full list of classes (including all sections)</li>
-              <li>Take a screenshot (Win+Shift+S or Cmd+Shift+4)</li>
-              <li>Make sure all classes, sections, times and locations are visible</li>
-            </ol>
-          </div>
-          
-          <div class="upload-area" id="upload-area">
-            <input type="file" id="schedule-upload" accept="image/*" hidden>
-            <button id="upload-btn" class="btn primary">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-              Upload Schedule Screenshot
+          <div class="input-method-toggle">
+            <button id="method-image" class="method-btn active">
+              📷 Screenshot
             </button>
-            <div id="file-info" style="display: none;">
-              <span id="upload-status"></span>
+            <button id="method-text" class="method-btn">
+              📋 Paste Text
+            </button>
+          </div>
+
+          <!-- Image Upload Section (NOW FIRST AND VISIBLE BY DEFAULT) -->
+          <div id="image-input-section" class="input-section">
+            <div class="instructions-box">
+              <h3>📸 How to take the screenshot:</h3>
+              <ol>
+                <li>Go to <a href="https://act.ucsd.edu/webreg2" target="_blank">WebReg</a></li>
+                <li>Select the correct quarter and click "Go" to load your schedule</li>
+                <li>Click the "List" tab to view your schedule as a table</li>
+                <li>Scroll to see your full list of classes (including all sections)</li>
+                <li>Take a screenshot (Win+Shift+S or Cmd+Shift+4)</li>
+                <li>Make sure all classes, sections, times and locations are visible</li>
+              </ol>
+            </div>
+          
+            <div class="upload-area" id="upload-area">
+              <input type="file" id="schedule-upload" accept="image/*" hidden>
+              <button id="upload-btn" class="btn primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                Upload Schedule Screenshot
+              </button>
+              <div id="file-info" style="display: none;">
+                <span id="upload-status"></span>
+              </div>
             </div>
           </div>
-        </div>
+
+          <!-- Text Paste Section (NOW SECOND AND HIDDEN BY DEFAULT) -->
+          <div id="text-input-section" class="input-section" style="display: none;">
+            <div class="instructions-box">
+              <h3>📋 How to copy your schedule:</h3>
+              <ol>
+                <li>Go to <a href="https://act.ucsd.edu/webreg2" target="_blank">WebReg</a></li>
+                <li>Select the correct quarter and click "Go" to load your schedule</li>
+                <li>Click the "List" tab to view your schedule as a table</li>
+                <li>Select all the text in your schedule table (Ctrl+A or Cmd+A)</li>
+                <li>Copy the selected text (Ctrl+C or Cmd+C)</li>
+                <li>Paste it in the box below (Ctrl+V or Cmd+V)</li>
+              </ol>
+            </div>
+          
+            <div class="text-paste-area">
+              <textarea 
+                id="schedule-text" 
+                placeholder="Paste your WebReg schedule text here...
+
+  Example format:
+  CSE 100	Advanced Data Structures	A00	LE	Sahoo	MWF	9:00a-9:50a	PETER	108
+      A01	DI	W	8:00p-8:50p	PETER	108
+      Midterm	MI	Sa 02/07/2026	3:00p-4:50p	PETER	108
+      Final Exam	FI	W 03/18/2026	8:00a-10:59a	PETER	108"
+                rows="10"></textarea>
+              <div id="text-char-count" class="char-count">0 characters</div>
+            </div>
+          
+            <button id="parse-text-btn" class="btn primary" disabled>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+              Parse Schedule Text
+            </button>
+          </div>
       </div>
     </div>
     
