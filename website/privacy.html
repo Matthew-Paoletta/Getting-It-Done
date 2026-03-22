@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebReg2Cal - Privacy & Permissions</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        .section {
+            background: #f9f9f9;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 10px;
+            border-left: 4px solid #3498db;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        ul {
+            padding-left: 20px;
+        }
+        .last-updated {
+            color: #7f8c8d;
+            font-style: italic;
+            text-align: center;
+            margin-top: 40px;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebReg2Cal Chrome Extension</h1>
+    <p>Privacy Policy, Permissions Justifications, and Data Usage Disclosures</p>
+    
+    <div class="section">
+        <h2>📋 Privacy Policy</h2>
+        <p><strong>Last Updated:</strong> March 21, 2026</p>
+        <p><strong>Effective Date:</strong> March 21, 2026</p>
+        
+        <p>WebReg2Cal is designed to respect your privacy. This extension does not maliciously collect, store, or share your personal data.</p>
+        
+        <ul>
+            <li><strong>Data Extraction:</strong> When you provide your Webreg schedule (either by uploading a screenshot or pasting text), the extension processes this data to extract your class information.</li>
+            <li><strong>Third-Party OCR Service:</strong> If you use the screenshot method, the image is sent to a secure, third-party Optical Character Recognition (OCR) API (<code>api.ocr.space</code>) exclusively to extract text. The image is not saved or used for any other purpose.</li>
+            <li><strong>Google Calendar Integration:</strong> If you choose to directly sync your schedule to Google Calendar, the extension requests OAuth2 authorization using the `calendar.events` scope. This permission is used <em>strictly</em> to create new events (your classes and week markers) on your personal Google Calendar. WebReg2Cal never reads, deletes, or modifies any existing calendar events, nor does it send your calendar data to our own servers.</li>
+            <li><strong>Local Processing:</strong> Besides the initial OCR step and the direct calendar sync, all parsing and generation of `.ics` files happens locally within your browser. </li>
+            <li><strong>Uninstalling:</strong> You can revoke Google Calendar access from your Google Account settings, and uninstalling the extension clears any local data managed by it.</li>
+        </ul>
+        
+        <p><strong>Contact:</strong> mvppvm42@gmail.com</p>
+    </div>
+    
+    <div class="section">
+        <h2>🔐 Permissions Justifications</h2>
+        
+        <h3>1. identity & OAuth2 Justification</h3>
+        <p>The <code>identity</code> permission and the Google Calendar OAuth2 scope (<code>https://www.googleapis.com/auth/calendar.events</code>) are only utilized when the user clicks the "Add to Google Calendar" button. This enables secure login via Google and allows the extension to automatically generate schedule events in the user's primary calendar. No personal identity data (such as emails or profile pictures) is collected by the developer.</p>
+        
+        <h3>2. Host Permissions (API endpoints)</h3>
+        <p>The extension requires access to exactly three external endpoints:
+          <ul>
+            <li><code>https://api.ocr.space/*</code> — Used to send the user's schedule screenshot for text extraction.</li>
+            <li><code>https://www.googleapis.com/*</code> and <code>https://accounts.google.com/*</code> — Used exclusively for the Google OAuth authorization flow and the Calendar API event creation.</li>
+          </ul>
+        </p>
+
+        <h3>3. ActiveTab / Storage (Historical)</h3>
+        <p>While previous versions used <code>activeTab</code> and <code>storage</code>, version 1.5.0 and beyond relies on manual image upload or copy-pasting text, meaning the extension only processes user-provided inputs within its popup environment.</p>
+
+        <h3>4. Remote code usage</h3>
+        <p><strong>No.</strong> We do not execute remote code. All JavaScript logic to parse rules and format schedules is bundled directly into the extension package.</p>
+    </div>
+    
+    <div class="section">
+        <h2>📊 Data Usage Disclosures</h2>
+        
+        <h3>Data collected & processed:</h3>
+        <ul>
+            <li><strong>Schedule Information:</strong> Class times, locations, course codes, and instructor names provided via screenshot or text paste.</li>
+            <li><strong>Authentication Tokens:</strong> Temporary OAuth tokens granted securely by Google (held entirely in the browser memory cache) to facilitate calendar integration.</li>
+        </ul>
+        
+        <h3>Data NOT collected:</h3>
+        <ul>
+            <li>Any personally identifiable information (Name, Student ID, GPA, Phone numbers)</li>
+            <li>Health or Financial information</li>
+            <li>Personal communications</li>
+            <li>Location data or Web browsing history</li>
+        </ul>
+        
+        <h3>Certifications:</h3>
+        <ul>
+            <li>I do not sell or transfer user data to third parties.</li>
+            <li>I do not use or transfer user data for purposes unrelated to the core function of converting WebReg schedules into Calendar events.</li>
+            <li>I do not use or transfer user data to determine creditworthiness or for lending purposes.</li>
+        </ul>
+    </div>
+    
+    <div class="last-updated">
+        This page contains all required disclosures for the "WebReg2Cal" Chrome Extension.<br>
+        Last updated: March 21, 2026
+    </div>
+</body>
+</html>

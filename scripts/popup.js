@@ -515,14 +515,14 @@ export function displayScheduleResults(events, quarter, year) {
         <h3>🎯 Export Your Schedule</h3>
         <p>Download your complete class schedule as a .ics calendar file that you can import into Google Calendar, Outlook, or any calendar app.</p>
         <div class="export-buttons">
-          <button id="download-ics-btn" class="download-btn">
-            📥 Download .ics File
-          </button>
-          <!-- Google Calendar direct sync - hidden until app is verified
-          <button id="google-calendar-btn" class="download-btn secondary">
+          <!-- Hidden for v1.5.0 until Google OAuth Verification is approved (planned for v1.6.0)
+          <button id="google-calendar-btn" class="download-btn">
             📅 Add to Google Calendar
           </button>
           -->
+          <button id="download-ics-btn" class="download-btn secondary">
+            📥 Download .ics File
+          </button>
         </div>
       </div>
     </section>
@@ -927,72 +927,103 @@ export function setupExportButtons(events, quarter, year) {
       console.error('❌ Download button not found');
     }
 
-    // Google Calendar Button setup - DISABLED until Google verification is complete
-    // Uncomment this section when ready to enable direct Google Calendar sync
-    /*
+    // Google Calendar direct sync
     const googleBtn = document.getElementById('google-calendar-btn');
     if (googleBtn) {
       console.log('✅ Google Calendar button found');
-      
+
       googleBtn.onclick = null;
-      
+
       googleBtn.onclick = async function(e) {
         e.preventDefault();
         console.log('🔘 Google Calendar button clicked');
-        
+
         try {
           this.disabled = true;
-          this.textContent = '🔐 Authenticating...';
-          
+          this.textContent = '🔐 Signing in...';
+
           await googleCalendarAPI.authenticate();
-          this.textContent = '📅 Creating Events...';
-          
-          const googleEvents = events.map(event => ({
-            courseCode: event.courseCode,
-            courseTitle: event.courseTitle,
-            sessionType: event.getNormalizedSessionType(),
-            instructor: event.instructor,
-            days: event.days,
-            startTime: event.startTime,
-            endTime: event.endTime,
-            location: event.location,
-            quarter: quarter,
-            year: year
+
+          // Map course events to plain objects for the API
+          const courseEvents = events.map(event => ({
+            courseCode:   event.courseCode,
+            courseTitle:  event.courseTitle,
+            sessionType:  event.getNormalizedSessionType(),
+            instructor:   event.instructor,
+            days:         event.days,
+            startTime:    event.startTime,
+            endTime:      event.endTime,
+            location:     event.location,
+            building:     event.building,
+            room:         event.room,
+            finalDate:    event.finalDate,
+            sectionCode:  event.sectionCode,
+            quarter,
+            year
           }));
 
+          // Generate and append week marker events
+          const weekMarkers = googleCalendarAPI.generateWeekMarkerEvents(quarter, year);
+          const pad = (n) => String(n).padStart(2, '0');
+          const weekMarkerEvents = weekMarkers.map(marker => {
+            const d = marker.date;
+            const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+            const next = new Date(d);
+            next.setDate(next.getDate() + 1);
+            const nextStr = `${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(next.getDate())}`;
+            return { isWeekMarker: true, summary: marker.summary, date: dateStr, dateEnd: nextStr };
+          });
+
+          const allEvents = [...courseEvents, ...weekMarkerEvents];
+          const total = allEvents.length;
+
+          this.textContent = `📅 Adding 1/${total}...`;
+
           const results = await googleCalendarAPI.createMultipleEvents(
-            googleEvents,
+            allEvents,
             'primary',
             (progress) => {
-              this.textContent = `📅 Creating... ${progress.current}/${progress.total}`;
+              this.textContent = `📅 Adding ${progress.current}/${total}...`;
             }
           );
-          
-          this.textContent = `✅ Added ${results.created.length} Events!`;
-          this.style.background = '#4CAF50';
-          
+
+          const added = results.created.length;
+          const failed = results.failed.length;
+
+          if (failed === 0) {
+            this.textContent = `✅ ${added} events added!`;
+            this.style.background = '#4CAF50';
+          } else {
+            this.textContent = `⚠️ ${added} added, ${failed} failed`;
+            this.style.background = '#ff9800';
+          }
+
           setTimeout(() => {
             this.disabled = false;
             this.textContent = '📅 Add to Google Calendar';
             this.style.background = '';
-          }, 3000);
-          
+          }, 4000);
+
         } catch (error) {
           console.error('❌ Google Calendar sync failed:', error);
-          alert(`Google Calendar sync failed: ${error.message}`);
-          
+
           this.disabled = false;
           this.textContent = '❌ Sync Failed';
           this.style.background = '#f44336';
-          
+
+          alert(`Google Calendar sync failed:\n${error.message}`);
+
           setTimeout(() => {
             this.textContent = '📅 Add to Google Calendar';
             this.style.background = '';
           }, 3000);
         }
       };
+
+      console.log('✅ Google Calendar button handler attached');
+    } else {
+      console.error('❌ Google Calendar button not found');
     }
-    */
     
   }, 100);
   

@@ -140,6 +140,29 @@ export class GoogleCalendarAPI {
         }
       }
 
+      // Add week marker all-day events (Week 1–10 + Finals Week)
+      const weekMarkers = this.generateWeekMarkerEvents(quarter, year);
+      for (const marker of weekMarkers) {
+        const markerEvent = this.createWeekMarkerICS(marker.summary, marker.date, quarter, year);
+        if (markerEvent) {
+          icsContent += markerEvent + '\r\n';
+          eventsCreated++;
+          createdICSEvents.push({
+            type: 'Week Marker',
+            title: marker.summary,
+            courseCode: '',
+            courseTitle: '',
+            days: marker.date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
+            date: marker.date.toLocaleDateString(),
+            startTime: 'All Day',
+            endTime: 'All Day',
+            location: '',
+            instructor: '',
+            recurrence: 'All-day event'
+          });
+        }
+      }
+
       // ICS file footer
       icsContent += 'END:VCALENDAR\r\n';
 
@@ -295,6 +318,76 @@ export class GoogleCalendarAPI {
       console.error('❌ Error creating weekly event:', error);
       return null;
     }
+  }
+
+  /**
+   * Generate all-day "Week N" and "Finals Week" marker events for the quarter.
+   * Returns an array of { summary, date } objects, one per week, on each Monday.
+   */
+  generateWeekMarkerEvents(quarter, year) {
+    const { startDate } = this.getQuarterDatesForICS(quarter, year);
+
+    // Find the Monday ON OR AFTER the quarter start date.
+    // This handles Fall (starts Thu → jump forward to Mon of Week 1)
+    // and Spring (starts Mon → stay on that Monday).
+    // getDay(): 0=Sun, 1=Mon, 2=Tue, ..., 6=Sat
+    const dayOfWeek = startDate.getDay();
+    const daysToMonday = dayOfWeek === 1 ? 0 : (8 - dayOfWeek) % 7;
+    const week1Monday = new Date(startDate);
+    week1Monday.setDate(week1Monday.getDate() + daysToMonday);
+    week1Monday.setHours(0, 0, 0, 0);
+
+    const markers = [];
+
+    for (let week = 1; week <= 10; week++) {
+      const monday = new Date(week1Monday);
+      monday.setDate(monday.getDate() + (week - 1) * 7);
+      markers.push({ summary: `Week ${week}`, date: monday });
+    }
+
+    // Finals Week = 11th week
+    const finalsMonday = new Date(week1Monday);
+    finalsMonday.setDate(finalsMonday.getDate() + 10 * 7);
+    markers.push({ summary: 'Finals Good Luck :)', date: finalsMonday });
+
+    console.log(`📅 Generated ${markers.length} week markers for ${quarter} ${year}, starting ${week1Monday.toDateString()}`);
+    return markers;
+  }
+
+  /**
+   * Create an all-day VEVENT string for a week marker.
+   */
+  createWeekMarkerICS(summary, date, quarter, year) {
+    try {
+      const dateStr = this.formatDateForICS(date);
+      const nextDay = new Date(date);
+      nextDay.setDate(nextDay.getDate() + 1);
+      const nextDayStr = this.formatDateForICS(nextDay);
+
+      const uid = `week-marker-${summary.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}-${quarter.replace(/\s+/g, '-')}-${year}@gettingitdone.ucsd`;
+
+      return [
+        'BEGIN:VEVENT',
+        `UID:${uid}`,
+        `DTSTART;VALUE=DATE:${dateStr}`,
+        `DTEND;VALUE=DATE:${nextDayStr}`,
+        `SUMMARY:${summary}`,
+        'STATUS:CONFIRMED',
+        'TRANSP:TRANSPARENT',
+        'END:VEVENT'
+      ].join('\r\n');
+    } catch (error) {
+      console.error('❌ Error creating week marker event:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Format a Date as YYYYMMDD for ICS VALUE=DATE fields
+   */
+  formatDateForICS(date) {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`;
   }
 
   /**
@@ -523,10 +616,13 @@ export class GoogleCalendarAPI {
         }
 
         const createdEvent = await this.createCalendarEvent(eventData, calendarId);
-        results.created.push({
-          original: eventData,
-          created: createdEvent
-        });
+        // null means event was skipped due to missing data — not a failure
+        if (createdEvent !== null) {
+          results.created.push({
+            original: eventData,
+            created: createdEvent
+          });
+        }
 
         // Small delay to avoid rate limiting
         await this.delay(100);
@@ -551,6 +647,11 @@ export class GoogleCalendarAPI {
     }
 
     const event = this.formatEventForGoogleCalendar(eventData);
+
+    // formatEventForGoogleCalendar returns null for events with missing required data
+    if (!event) {
+      return null;
+    }
     
     try {
       const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`, {
@@ -577,51 +678,72 @@ export class GoogleCalendarAPI {
   }
 
   // Format event data for Google Calendar API
+  // Handles three cases: all-day week markers, one-time exams, and weekly recurring classes
   formatEventForGoogleCalendar(eventData) {
-    const { 
-      courseCode, 
-      courseTitle, 
-      sessionType, 
-      instructor, 
-      days, 
-      startTime, 
-      endTime, 
-      location, 
-      quarter, 
-      year 
-    } = eventData;
+    // ── Case 1: All-day week marker ──
+    if (eventData.isWeekMarker) {
+      return {
+        summary: eventData.summary,
+        start: { date: eventData.date },
+        end:   { date: eventData.dateEnd },
+        transparency: 'transparent',
+        reminders: { useDefault: false, overrides: [] }
+      };
+    }
 
-    // Convert days to recurring pattern
-    const recurrence = this.createRecurrenceRule(days, quarter, year);
-    
-    // Convert times to ISO format
+    const { courseCode, sessionType, days, startTime, endTime,
+            location, building, room, quarter, year, finalDate } = eventData;
+
+    const mapsLocation = getGoogleMapsLocation(location, building, room);
+
+    // ── Case 2: One-time exam (Final Exam / Midterm) ──
+    if (sessionType === 'Final Exam' || sessionType === 'Midterm') {
+      if (!finalDate) {
+        console.log(`⚠️ Skipping ${sessionType} for ${courseCode} — no date`);
+        return null;
+      }
+      const parts = finalDate.split('/');
+      const examYear = parts[2].length === 2 ? '20' + parts[2] : parts[2];
+      const examDateStr = `${examYear}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+      const examDate = new Date(`${examDateStr}T00:00:00`);
+      const startDT = this.parseTimeToDate(startTime, examDate);
+      const endDT   = this.parseTimeToDate(endTime,   examDate);
+      if (!startDT || !endDT) {
+        console.log(`⚠️ Skipping ${sessionType} for ${courseCode} — could not parse times`);
+        return null;
+      }
+      return {
+        summary:     `${courseCode} ${sessionType}`,
+        description: this.createEventDescription(eventData),
+        location:    mapsLocation,
+        start: { dateTime: this.toLocalISOString(startDT), timeZone: 'America/Los_Angeles' },
+        end:   { dateTime: this.toLocalISOString(endDT),   timeZone: 'America/Los_Angeles' },
+        reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: 60 }] },
+        colorId: this.getEventColor(sessionType)
+      };
+    }
+
+    // ── Case 3: Weekly recurring class (Lecture / Discussion / Lab) ──
+    if (!days) {
+      console.log(`⚠️ Skipping ${sessionType} for ${courseCode} — no days`);
+      return null;
+    }
     const startDateTime = this.createDateTime(days, startTime, quarter, year);
-    const endDateTime = this.createDateTime(days, endTime, quarter, year);
-
-    const event = {
-      summary: `${courseCode} - ${sessionType}`,
+    const endDateTime   = this.createDateTime(days, endTime,   quarter, year);
+    if (!startDateTime || !endDateTime) {
+      console.log(`⚠️ Skipping ${sessionType} for ${courseCode} — could not compute datetime`);
+      return null;
+    }
+    return {
+      summary:     `${courseCode} - ${sessionType}`,
       description: this.createEventDescription(eventData),
-      location: location || '',
-      start: {
-        dateTime: startDateTime,
-        timeZone: 'America/Los_Angeles'
-      },
-      end: {
-        dateTime: endDateTime,
-        timeZone: 'America/Los_Angeles'
-      },
-      recurrence: recurrence,
-      reminders: {
-        useDefault: false,
-        overrides: [
-          { method: 'popup', minutes: 10 },
-          { method: 'email', minutes: 60 }
-        ]
-      },
+      location:    mapsLocation,
+      start: { dateTime: startDateTime, timeZone: 'America/Los_Angeles' },
+      end:   { dateTime: endDateTime,   timeZone: 'America/Los_Angeles' },
+      recurrence: this.createRecurrenceRule(days, quarter, year),
+      reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: 10 }] },
       colorId: this.getEventColor(sessionType)
     };
-
-    return event;
   }
 
   // Create event description for Google Calendar
@@ -650,20 +772,21 @@ export class GoogleCalendarAPI {
     return description;
   }
 
-  // Convert class days and times to ISO datetime for Google Calendar
+  // Convert class days and times to a local ISO datetime string for Google Calendar
   createDateTime(days, time, quarter, year) {
-    // Get the first occurrence date based on quarter start and days
     const { startDate } = this.getQuarterDatesForICS(quarter, year);
-    
-    // Find the first occurrence of the class day
     const firstOccurrence = this.findFirstDayOccurrence(startDate, days);
-    
-    // Parse the time
-    const { hours, minutes } = this.parseTime(time);
-    
-    firstOccurrence.setHours(hours, minutes, 0, 0);
-    
-    return firstOccurrence.toISOString();
+    const dateWithTime = this.parseTimeToDate(time, firstOccurrence);
+    if (!dateWithTime) return null;
+    return this.toLocalISOString(dateWithTime);
+  }
+
+  // Format a Date as a local (non-UTC) ISO string: "YYYY-MM-DDTHH:MM:SS"
+  // Google Calendar interprets this as local time when timeZone is also provided.
+  toLocalISOString(date) {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+           `T${pad(date.getHours())}:${pad(date.getMinutes())}:00`;
   }
 
   // Find first occurrence of class days in the quarter for Google Calendar
@@ -721,6 +844,23 @@ export class GoogleCalendarAPI {
   }
 
   // ===== SHARED UTILITY METHODS =====
+
+  // Get event color ID for Google Calendar (1–11 palette)
+  getEventColor(sessionType) {
+    const colors = {
+      'Lecture':    '9',  // Blueberry
+      'Discussion': '2',  // Sage
+      'Lab':        '6',  // Tangerine
+      'Final Exam': '3',  // Grape
+      'Midterm':    '4'   // Flamingo
+    };
+    return colors[sessionType] || '1'; // Lavender default
+  }
+
+  // Small async delay to avoid hitting API rate limits
+  delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
 
   // Get quarter dates
   getQuarterDates(quarter, year) {
