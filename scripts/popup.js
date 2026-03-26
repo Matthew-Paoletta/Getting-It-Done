@@ -1021,9 +1021,7 @@ export function setupExportButtons(events, quarter, year) {
       };
 
       console.log('✅ Google Calendar button handler attached');
-    } else {
-      console.error('❌ Google Calendar button not found');
-    }
+    } 
     
   }, 100);
   
