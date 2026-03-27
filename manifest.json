@@ -4,8 +4,7 @@
   "version": "1.5.2",
   "description": "Transform your UCSD WebReg schedule into calendar events",
   "permissions": [
-    "identity",
-    "storage"
+    "identity"
   ],
   "host_permissions": [
     "https://api.ocr.space/*",
