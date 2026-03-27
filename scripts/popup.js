@@ -1206,11 +1206,38 @@ CSE 100	Advanced Data Structures	A00	LE	Sahoo, Debashis	L	4.00	MWF	9:00a-9:50a	P
   `;
 }
 
+// ===== DATA COLLECTION CONSENT DIALOG =====
+function setupConsentDialog() {
+  const dialog = document.getElementById('consent-dialog');
+  const agreeBtn = document.getElementById('consent-agree-btn');
+
+  if (!dialog || !agreeBtn) {
+    console.warn('⚠️ Consent dialog elements not found');
+    return;
+  }
+
+  // Check whether the user has already consented
+  chrome.storage.local.get(['dataConsentGiven'], (result) => {
+    if (!result.dataConsentGiven) {
+      dialog.style.display = 'flex';
+    }
+  });
+
+  agreeBtn.addEventListener('click', () => {
+    chrome.storage.local.set({ dataConsentGiven: true }, () => {
+      dialog.style.display = 'none';
+    });
+  });
+}
+
 // ===== INITIALIZE =====
 document.addEventListener('DOMContentLoaded', () => {
   console.log('🚀 DOM loaded, initializing...');
   
   try {
+    // Show data-collection consent on first run (required for Chrome Web Store compliance)
+    setupConsentDialog();
+
     // Add these two new setup calls
     setupInputMethodToggle();
     setupTextInput();

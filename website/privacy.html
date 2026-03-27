@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebReg2Cal - Privacy & Permissions</title>
+    <title>WebReg2Cal Privacy Policy</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -43,76 +43,85 @@
     </style>
 </head>
 <body>
-    <h1>WebReg2Cal Chrome Extension</h1>
-    <p>Privacy Policy, Permissions Justifications, and Data Usage Disclosures</p>
+    <h1>WebReg2Cal Privacy Policy</h1>
+    <p>This page is the official privacy policy for the WebReg2Cal Chrome extension.</p>
     
     <div class="section">
-        <h2>📋 Privacy Policy</h2>
-        <p><strong>Last Updated:</strong> March 21, 2026</p>
-        <p><strong>Effective Date:</strong> March 21, 2026</p>
+        <h2>1. Scope</h2>
+        <p><strong>Last Updated:</strong> March 26, 2026</p>
+        <p><strong>Effective Date:</strong> March 26, 2026</p>
         
-        <p>WebReg2Cal is designed to respect your privacy. This extension does not maliciously collect, store, or share your personal data.</p>
-        
-        <ul>
-            <li><strong>Data Extraction:</strong> When you provide your Webreg schedule (either by uploading a screenshot or pasting text), the extension processes this data to extract your class information.</li>
-            <li><strong>Third-Party OCR Service:</strong> If you use the screenshot method, the image is sent to a secure, third-party Optical Character Recognition (OCR) API (<code>api.ocr.space</code>) exclusively to extract text. The image is not saved or used for any other purpose.</li>
-            <li><strong>Google Calendar Integration:</strong> If you choose to directly sync your schedule to Google Calendar, the extension requests OAuth2 authorization using the `calendar.events` scope. This permission is used <em>strictly</em> to create new events (your classes and week markers) on your personal Google Calendar. WebReg2Cal never reads, deletes, or modifies any existing calendar events, nor does it send your calendar data to our own servers.</li>
-            <li><strong>Local Processing:</strong> Besides the initial OCR step and the direct calendar sync, all parsing and generation of `.ics` files happens locally within your browser. </li>
-            <li><strong>Uninstalling:</strong> You can revoke Google Calendar access from your Google Account settings, and uninstalling the extension clears any local data managed by it.</li>
-        </ul>
-        
-        <p><strong>Contact:</strong> mvppvm42@gmail.com</p>
+        <p>WebReg2Cal converts a user-provided WebReg schedule into calendar events. This policy explains what data is processed, why it is processed, and your choices.</p>
     </div>
-    
+
     <div class="section">
-        <h2>🔐 Permissions Justifications</h2>
-        
-        <h3>1. identity & OAuth2 Justification</h3>
-        <p>The <code>identity</code> permission and the Google Calendar OAuth2 scope (<code>https://www.googleapis.com/auth/calendar.events</code>) are only utilized when the user clicks the "Add to Google Calendar" button. This enables secure login via Google and allows the extension to automatically generate schedule events in the user's primary calendar. No personal identity data (such as emails or profile pictures) is collected by the developer.</p>
-        
-        <h3>2. Host Permissions (API endpoints)</h3>
-        <p>The extension requires access to exactly three external endpoints:
-          <ul>
-            <li><code>https://api.ocr.space/*</code> — Used to send the user's schedule screenshot for text extraction.</li>
-            <li><code>https://www.googleapis.com/*</code> and <code>https://accounts.google.com/*</code> — Used exclusively for the Google OAuth authorization flow and the Calendar API event creation.</li>
-          </ul>
-        </p>
+        <h2>2. Data We Process</h2>
+        <ul>
+            <li><strong>Schedule content you provide:</strong> Class names, dates, times, locations, and related schedule text from pasted input or uploaded screenshots.</li>
+            <li><strong>Google authorization tokens:</strong> Temporary OAuth tokens from Google when you choose to connect Google Calendar.</li>
+        </ul>
 
-        <h3>3. ActiveTab / Storage (Historical)</h3>
-        <p>While previous versions used <code>activeTab</code> and <code>storage</code>, version 1.5.0 and beyond relies on manual image upload or copy-pasting text, meaning the extension only processes user-provided inputs within its popup environment.</p>
-
-        <h3>4. Remote code usage</h3>
-        <p><strong>No.</strong> We do not execute remote code. All JavaScript logic to parse rules and format schedules is bundled directly into the extension package.</p>
+        <p>We do <strong>not</strong> collect unrelated personal data such as browsing history, health information, financial information, or user communications.</p>
     </div>
-    
+
     <div class="section">
-        <h2>📊 Data Usage Disclosures</h2>
-        
-        <h3>Data collected & processed:</h3>
+        <h2>3. How Data Is Used</h2>
         <ul>
-            <li><strong>Schedule Information:</strong> Class times, locations, course codes, and instructor names provided via screenshot or text paste.</li>
-            <li><strong>Authentication Tokens:</strong> Temporary OAuth tokens granted securely by Google (held entirely in the browser memory cache) to facilitate calendar integration.</li>
+            <li>To parse your schedule and generate calendar events.</li>
+            <li>To create events in your Google Calendar only after you choose to authorize access.</li>
+            <li>To extract text from an uploaded screenshot using OCR when you choose the screenshot flow.</li>
         </ul>
-        
-        <h3>Data NOT collected:</h3>
+    </div>
+
+    <div class="section">
+        <h2>4. Third-Party Services</h2>
         <ul>
-            <li>Any personally identifiable information (Name, Student ID, GPA, Phone numbers)</li>
-            <li>Health or Financial information</li>
-            <li>Personal communications</li>
-            <li>Location data or Web browsing history</li>
+            <li><strong>OCR provider:</strong> <code>https://api.ocr.space/</code> receives uploaded screenshot images only for text extraction.</li>
+            <li><strong>Google OAuth and Calendar API:</strong> <code>https://accounts.google.com/</code> and <code>https://www.googleapis.com/</code> are used only for sign-in and creating calendar events that you requested.</li>
         </ul>
-        
-        <h3>Certifications:</h3>
+    </div>
+
+    <div class="section">
+        <h2>5. Storage, Retention, and Sharing</h2>
         <ul>
-            <li>I do not sell or transfer user data to third parties.</li>
-            <li>I do not use or transfer user data for purposes unrelated to the core function of converting WebReg schedules into Calendar events.</li>
-            <li>I do not use or transfer user data to determine creditworthiness or for lending purposes.</li>
+            <li>WebReg2Cal does not operate a backend server to store your schedule or calendar data.</li>
+            <li>Processing primarily occurs locally in the extension, except calls required for OCR and Google Calendar integration initiated by you.</li>
+            <li>We do not sell user data and do not share user data for advertising purposes.</li>
         </ul>
+    </div>
+
+    <div class="section">
+        <h2>6. Consent and User Choice</h2>
+        <ul>
+            <li>Using OCR is optional and only happens when you upload a screenshot.</li>
+            <li>Google Calendar access is optional and only happens when you explicitly authorize it.</li>
+            <li>You can use WebReg2Cal in local/export workflows without connecting Google Calendar.</li>
+            <li>You can revoke Google access at any time in your Google Account permissions settings.</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>7. Permissions Used</h2>
+        <ul>
+            <li><code>identity</code>: Required for secure Google OAuth sign-in when you choose calendar sync.</li>
+            <li><code>https://api.ocr.space/*</code>: Required to process screenshot text when you use OCR.</li>
+            <li><code>https://www.googleapis.com/*</code> and <code>https://accounts.google.com/*</code>: Required for Google OAuth and event creation.</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>8. Changes to This Policy</h2>
+        <p>We may update this policy when product behavior changes. The updated date at the top of this page reflects the latest revision.</p>
+    </div>
+
+    <div class="section">
+        <h2>9. Contact</h2>
+        <p>Email: <strong>mvppvm42@gmail.com</strong></p>
     </div>
     
     <div class="last-updated">
-        This page contains all required disclosures for the "WebReg2Cal" Chrome Extension.<br>
-        Last updated: March 21, 2026
+        WebReg2Cal privacy policy.<br>
+        Last updated: March 26, 2026
     </div>
 </body>
 </html>

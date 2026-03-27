@@ -1,10 +1,11 @@
 {
   "manifest_version": 3,
   "name": "WebReg2Cal",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "Transform your UCSD WebReg schedule into calendar events",
   "permissions": [
-    "identity"
+    "identity",
+    "storage"
   ],
   "host_permissions": [
     "https://api.ocr.space/*",

@@ -73,6 +73,7 @@
           
             <div class="upload-area" id="upload-area">
               <input type="file" id="schedule-upload" accept="image/*" hidden>
+              <p class="data-notice">&#128274; Your screenshot will be sent to a third-party OCR service (api.ocr.space) for text extraction.</p>
               <button id="upload-btn" class="btn primary">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
                 Upload Schedule Screenshot
@@ -140,7 +141,7 @@
     <!-- Footer -->
     <footer>
       <p>Made with ❤️ at UCSD</p>
-      <p class="version">Version 1.5.1</p>
+      <p class="version">Version 1.5.2</p>
     </footer>
   </div>
 
@@ -220,6 +221,39 @@
         <button id="modal-cancel-btn" class="btn secondary">Cancel</button>
         <button id="modal-save-btn" class="btn primary">Save Changes</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ===== DATA COLLECTION CONSENT DIALOG (shown on first use) ===== -->
+  <div id="consent-dialog" class="consent-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="consent-title">
+    <div class="consent-box">
+      <h2 id="consent-title">&#128274; Data Collection Notice</h2>
+      <p>Before using WebReg2Cal, please review how your data is handled:</p>
+      <ul>
+        <li>
+          <strong>Screenshot method:</strong> The image you upload is sent to a
+          third-party OCR service (<code>api.ocr.space</code>) solely to extract
+          text. It is not retained or used for any other purpose.
+        </li>
+        <li>
+          <strong>Paste-text method:</strong> Your schedule text is processed
+          entirely inside your browser — nothing leaves your device.
+        </li>
+        <li>
+          <strong>Google Calendar sync (optional):</strong> If you choose to
+          connect Google Calendar, your schedule events are sent directly to
+          Google via its official API. No data passes through our servers.
+        </li>
+        <li>
+          <strong>No backend storage:</strong> WebReg2Cal has no server.
+          Your data is never collected or stored by this extension's developer.
+        </li>
+      </ul>
+      <p>
+        By clicking <strong>"I Understand &amp; Agree"</strong> you acknowledge
+        this data handling and consent to it.
+      </p>
+      <button id="consent-agree-btn" class="btn primary">I Understand &amp; Agree</button>
     </div>
   </div>
 
