@@ -1473,11 +1473,27 @@ footer {
   font-size: 10px;
 }
 
-.consent-box #consent-agree-btn {
-  width: 100%;
+.consent-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 15px;
+}
+
+.consent-buttons button {
+  flex: 1;
   padding: 10px;
   font-size: 13px;
   font-weight: 600;
+}
+
+.consent-buttons .danger {
+  background: white;
+  color: #dc3545;
+  border: 1px solid #dc3545;
+}
+
+.consent-buttons .danger:hover {
+  background: #fff2f3;
 }
 
 /* Inline OCR data-notice inside upload area */

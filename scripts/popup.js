@@ -1210,23 +1210,29 @@ CSE 100	Advanced Data Structures	A00	LE	Sahoo, Debashis	L	4.00	MWF	9:00a-9:50a	P
 function setupConsentDialog() {
   const dialog = document.getElementById('consent-dialog');
   const agreeBtn = document.getElementById('consent-agree-btn');
+  const declineBtn = document.getElementById('consent-decline-btn');
+  const errorMsg = document.getElementById('consent-error');
 
-  if (!dialog || !agreeBtn) {
+  if (!dialog || !agreeBtn || !declineBtn) {
     console.warn('⚠️ Consent dialog elements not found');
     return;
   }
 
   // Check whether the user has already consented
-  chrome.storage.local.get(['dataConsentGiven'], (result) => {
-    if (!result.dataConsentGiven) {
-      dialog.style.display = 'flex';
-    }
-  });
+  if (!localStorage.getItem('dataConsentGiven')) {
+    dialog.style.display = 'flex';
+  }
 
   agreeBtn.addEventListener('click', () => {
-    chrome.storage.local.set({ dataConsentGiven: true }, () => {
-      dialog.style.display = 'none';
-    });
+    localStorage.setItem('dataConsentGiven', 'true');
+    dialog.style.display = 'none';
+    if (errorMsg) errorMsg.style.display = 'none';
+  });
+
+  declineBtn.addEventListener('click', () => {
+    if (errorMsg) {
+      errorMsg.style.display = 'block';
+    }
   });
 }
 

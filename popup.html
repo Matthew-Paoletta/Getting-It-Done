@@ -141,7 +141,7 @@
     <!-- Footer -->
     <footer>
       <p>Made with ❤️ at UCSD</p>
-      <p class="version">Version 1.5.3</p>
+      <p class="version">Version 1.5.4</p>
     </footer>
   </div>
 
@@ -227,33 +227,29 @@
   <!-- ===== DATA COLLECTION CONSENT DIALOG (shown on first use) ===== -->
   <div id="consent-dialog" class="consent-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="consent-title">
     <div class="consent-box">
-      <h2 id="consent-title">&#128274; Data Collection Notice</h2>
-      <p>Before using WebReg2Cal, please review how your data is handled:</p>
+      <h2 id="consent-title">&#128274; Data Collection & Privacy Notice</h2>
+      <p><strong>Prominent Disclosure:</strong> To provide this service, WebReg2Cal collects specific data from you.</p>
       <ul>
         <li>
-          <strong>Screenshot method:</strong> The image you upload is sent to a
-          third-party OCR service (<code>api.ocr.space</code>) solely to extract
-          text. It is not retained or used for any other purpose.
+          <strong>What data we collect:</strong> We collect the schedule image files you upload.
         </li>
         <li>
-          <strong>Paste-text method:</strong> Your schedule text is processed
-          entirely inside your browser — nothing leaves your device.
+          <strong>How we use it:</strong> Your images are sent to a third-party service (<code>api.ocr.space</code>) exclusively to extract text so we can build your calendar events.
         </li>
         <li>
-          <strong>Google Calendar sync (optional):</strong> If you choose to
-          connect Google Calendar, your schedule events are sent directly to
-          Google via its official API. No data passes through our servers.
-        </li>
-        <li>
-          <strong>No backend storage:</strong> WebReg2Cal has no server.
-          Your data is never collected or stored by this extension's developer.
+          We do not retain, store, or sell your images or personal data.
         </li>
       </ul>
       <p>
-        By clicking <strong>"I Understand &amp; Agree"</strong> you acknowledge
-        this data handling and consent to it.
+        Do you consent to the collection and use of your schedule images as described above?
       </p>
-      <button id="consent-agree-btn" class="btn primary">I Understand &amp; Agree</button>
+      <div class="consent-buttons">
+        <button id="consent-decline-btn" class="btn danger">I Decline</button>
+        <button id="consent-agree-btn" class="btn primary">I Agree</button>
+      </div>
+      <p id="consent-error" class="error-msg" style="display:none; color:#dc3545; margin-top:10px; font-weight:bold;">
+        You must agree to continue using the extension. 
+      </p>
     </div>
   </div>
 
