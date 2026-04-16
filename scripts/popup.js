@@ -616,7 +616,7 @@ export function displayError(error) {
             <li>Check that the image shows the complete table with headers</li>
           </ul>
         </div>
-        <button onclick="location.reload()" class="btn primary" style="margin-top: 16px;">
+        <button id="try-again-btn-error" class="btn primary" style="margin-top: 16px;">
           🔄 Try Again
         </button>
       </div>
@@ -841,11 +841,16 @@ function deleteEvent(index) {
         <div class="results-wrap">
           <h2 style="color: var(--text-light);">📭 No Events</h2>
           <p>All events have been deleted. Upload or paste a new schedule to start over.</p>
-          <button onclick="location.reload()" class="btn primary" style="margin-top: 16px;">
+          <button id="start-over-btn" class="btn primary" style="margin-top: 16px;">
             🔄 Start Over
           </button>
         </div>
       `;
+      // Fix CSP inline script violation
+      setTimeout(() => {
+        const btn = document.getElementById('start-over-btn');
+        if (btn) btn.addEventListener('click', () => location.reload());
+      }, 10);
     }
   }
 }
@@ -1199,11 +1204,15 @@ CSE 100	Advanced Data Structures	A00	LE	Sahoo, Debashis	L	4.00	MWF	9:00a-9:50a	P
         </pre>
       </div>
 
-      <button onclick="location.reload()" class="btn primary" style="margin-top: 16px;">
+      <button id="try-again-btn" class="btn primary" style="margin-top: 16px;">
         🔄 Try Again
       </button>
     </div>
   `;
+  setTimeout(() => {
+    const btn = document.getElementById('try-again-btn');
+    if (btn) btn.addEventListener('click', () => location.reload());
+  }, 10);
 }
 
 // ===== DATA COLLECTION CONSENT DIALOG =====

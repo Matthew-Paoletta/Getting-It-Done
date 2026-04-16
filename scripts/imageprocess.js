@@ -10,7 +10,7 @@ console.log('🚀 ImageProcess.js loaded');
 // ===== EMBEDDED IMAGE PROCESSOR CLASS =====
 class ImageProcessor {
   constructor() {
-    this.apiKey = 'K83779876888957'; // Default free tier key
+    this.apiKey = 'K87861288988957'; // Free tier key
     this.statusCallback = null;
   }
 
@@ -52,6 +52,41 @@ class ImageProcessor {
     });
   }
 
+  async _sendOCR(base64Image, engine) {
+    const formData = new FormData();
+    formData.append('language', 'eng');
+    formData.append('isTable', 'true');
+    formData.append('isCreateSearchablePdf', 'false');
+    formData.append('OCREngine', String(engine));
+    if (engine === 2) {
+      formData.append('scale', 'true');
+      formData.append('detectOrientation', 'true');
+      formData.append('isOverlayRequired', 'true');
+    }
+    formData.append('base64Image', base64Image);
+
+    const response = await fetch('https://api.ocr.space/parse/image', {
+      method: 'POST',
+      headers: { 'apikey': this.apiKey },
+      body: formData
+    });
+
+    if (!response.ok) {
+      throw new Error(`OCR API request failed: ${response.status} ${response.statusText}`);
+    }
+
+    const result = await response.json();
+
+    if (result.IsErroredOnProcessing) {
+      const errorMessages = Array.isArray(result.ErrorMessage) 
+        ? result.ErrorMessage.join('; ') 
+        : (result.ErrorMessage || 'Unknown OCR error');
+      throw new Error(`OCR processing failed: ${errorMessages}`);
+    }
+
+    return result;
+  }
+
   async extractTextFromImage(file) {
     this.updateStatus('🔍 Validating image...');
     this.validateImage(file);
@@ -59,40 +94,22 @@ class ImageProcessor {
     this.updateStatus('📄 Converting image to base64...');
     const base64Image = await this.convertToBase64(file);
 
-    this.updateStatus('🚀 Sending to OCR service...');
-
-    const formData = new FormData();
-    formData.append('language', 'eng');
-    formData.append('isTable', 'true');
-    formData.append('scale', 'true');
-    formData.append('OCREngine', '2');  // Engine 2 captures more rows including ones with empty leading cells
-    formData.append('detectOrientation', 'true');
-    formData.append('isCreateSearchablePdf', 'false');
-    formData.append('isOverlayRequired', 'true');  // Get coordinate data for better parsing
-    formData.append('base64Image', base64Image);
+    let result;
+    // Try Engine 2 (best accuracy), auto-fallback to Engine 1 if timeout
+    try {
+      this.updateStatus('🚀 Sending to OCR service (Engine 2)...');
+      result = await this._sendOCR(base64Image, 2);
+    } catch (err) {
+      if (err.message && err.message.includes('E101')) {
+        this.updateStatus('⏳ Engine 2 timed out, retrying with faster Engine 1...');
+        result = await this._sendOCR(base64Image, 1);
+      } else {
+        throw err;
+      }
+    }
 
     try {
-      const response = await fetch('https://api.ocr.space/parse/image', {
-        method: 'POST',
-        headers: {
-          'apikey': this.apiKey
-        },
-        body: formData
-      });
-
-      if (!response.ok) {
-        throw new Error(`OCR API request failed: ${response.status} ${response.statusText}`);
-      }
-
       this.updateStatus('📊 Processing OCR results...');
-      const result = await response.json();
-
-      if (result.IsErroredOnProcessing) {
-        const errorMessages = Array.isArray(result.ErrorMessage) 
-          ? result.ErrorMessage.join('; ') 
-          : (result.ErrorMessage || 'Unknown OCR error');
-        throw new Error(`OCR processing failed: ${errorMessages}`);
-      }
 
       const extractedText = result.ParsedResults?.[0]?.ParsedText || '';
       
@@ -121,7 +138,7 @@ class ImageProcessor {
         metadata: {
           fileSize: file.size,
           fileName: file.name,
-          ocrEngine: 'OCR.space Engine 2',
+          ocrEngine: 'OCR.space',
           processingTime: result.ProcessingTimeInMilliseconds || 0
         }
       };
