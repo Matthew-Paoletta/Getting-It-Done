@@ -20,8 +20,8 @@ Get the WebReg2Cal extension now on the [Chrome Web Store](https://chromewebstor
 
 ## Metrics
 Here are some metrics as of Febuary 6, 2026:
-![page_views](assets/readme_images/page_views(4-20-2026).png)
 ![installations](assets/readme_images/installations(4-20-2026).png)
+![page_views](assets/readme_images/page_views(4-20-2026).png)
 
 ### Screenshot of the Chrome Web Store Page
 <div align="center">
