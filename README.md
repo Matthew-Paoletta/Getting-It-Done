@@ -19,7 +19,7 @@ This repository contains the software for `WebReg2Cal`, a tool that automaticall
 Get the WebReg2Cal extension now on the [Chrome Web Store](https://chromewebstore.google.com/detail/webreg2cal/lpokllkbcdgioagipllhfcpjmdnjjdci).
 
 ## Metrics
-Here are some metrics as of Febuary 6, 2026:
+Here are some metrics as of April 20, 2026:
 ![installations](assets/readme_images/installations(4-20-2026).png)
 ![page_views](assets/readme_images/page_views(4-20-2026).png)
 
